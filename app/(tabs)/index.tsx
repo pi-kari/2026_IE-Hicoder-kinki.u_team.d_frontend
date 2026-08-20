@@ -1,3 +1,4 @@
+import { Link } from 'expo-router'
 import { H2, Paragraph, XStack, YStack, Button, Card, Image, Progress } from 'tamagui'
 
 const progressItems = [
@@ -18,7 +19,9 @@ export default function TabOneScreen() {
           </Card.Header>
           <Card.Footer p="$4">
             <XStack flex={1} />
-            <Button rounded="$10">詳細を見る</Button>
+            <Link href="/books-list" asChild>
+              <Button rounded="$10">詳細を見る</Button>
+            </Link>
           </Card.Footer>
           <Card.Background items="center">
             <Image
@@ -48,7 +51,9 @@ export default function TabOneScreen() {
           </YStack>
           <Card.Footer p="$4">
             <XStack flex={1} />
-            <Button rounded="$10">詳細を見る</Button>
+            <Link href="/books-information" asChild>
+              <Button rounded="$10">詳細を見る</Button>
+            </Link>
           </Card.Footer>
         </Card>
       </XStack>

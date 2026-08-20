@@ -9,6 +9,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.red10.val,
+        tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: theme.background.val,
           borderTopColor: theme.borderColor.val,
@@ -37,7 +38,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="readrecord"
         options={{
           title: 'Tab Two',
           tabBarShowLabel: false,
@@ -60,11 +61,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="three"
+        name="prof"
         options={{
           title: 'Tab Three',
           tabBarShowLabel: false,
           tabBarIcon: ({ color }) => <AudioWaveform color={color as any} />,
+        }}
+      />
+      <Tabs.Screen
+        name="(main-pages)"
+        options={{
+          href: null,
+          headerShown: false,
         }}
       />
     </Tabs>
