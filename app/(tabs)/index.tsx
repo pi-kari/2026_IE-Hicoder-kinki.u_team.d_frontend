@@ -1,6 +1,4 @@
-import { ExternalLink } from '@tamagui/lucide-icons-2'
-import { Anchor, H2, Paragraph, XStack, YStack, Button, Card, Image, Theme, Progress } from 'tamagui'
-import { ToastControl } from 'components/CurrentToast'
+import { H2, Paragraph, XStack, YStack, Button, Card, Image, Progress } from 'tamagui'
 
 const progressItems = [
   { label: '一冊目のタイトル', value: 80, visible: true },
@@ -11,7 +9,6 @@ const progressItems = [
 export default function TabOneScreen() {
   return (
     <YStack flex={1} items="center" gap="$8" px="$10" pt="$5" bg="$background">
-    
       <H2>TSUMIDOKU v0.0a</H2>
       <XStack width="100%">
         <Card width="100%" size="$4" borderWidth={1} borderColor="$borderColor">
@@ -54,15 +51,6 @@ export default function TabOneScreen() {
             <Button rounded="$10">詳細を見る</Button>
           </Card.Footer>
         </Card>
-      </XStack>
-      <XStack
-        items="center"
-        justify="center"
-        flexWrap="wrap"
-        gap="$1.5"
-        position="absolute"
-        b="$8"
-      >
       </XStack>
     </YStack>
   )
