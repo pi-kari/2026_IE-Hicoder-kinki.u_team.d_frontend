@@ -4,7 +4,7 @@ import { Plus } from '@tamagui/lucide-icons-2'
 export default function TabTwoScreen() {
   return (
     <YStack flex={1} items="center" gap="$6" px="$5" pt="$6" bg="$background">
-      <Card width="100%" size="$4" borderWidth={1} borderColor="$borderColor">
+      <Card width="100%" maxWidth={500} size="$4" borderWidth={1} borderColor="$borderColor">
         <Card.Header p="$4" gap="$1">
           <H3>進捗状況を更新</H3>
           <XStack items="center" gap="$2" width="100%" pt="$3">
