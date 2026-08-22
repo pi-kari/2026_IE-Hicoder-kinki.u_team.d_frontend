@@ -1,7 +1,18 @@
 import { Check, ChevronDown } from "@tamagui/lucide-icons-2";
+import { Toaster, toast } from "@tamagui/toast/v2";
 import { fetch } from "expo/fetch";
 import { useEffect, useState } from "react";
-import { Button, Card, H3, Input, Select, XStack, YStack } from "tamagui";
+import {
+	Button,
+	Card,
+	H3,
+	Input,
+	Select,
+	Strong,
+	TextArea,
+	XStack,
+	YStack,
+} from "tamagui";
 
 export default function TabTwoScreen() {
 	// 本の一覧
@@ -32,7 +43,16 @@ export default function TabTwoScreen() {
 	// 登録ボタンが押されたときの送信処理
 	const submitProgress = async () => {
 		if (!selectedBookId) {
-			alert("本を選択してください");
+			toast.error("本を選択してください");
+			return;
+		}
+
+		if (
+			!pagesRead ||
+			Number.isNaN(Number(pagesRead)) ||
+			Number(pagesRead) <= 0
+		) {
+			toast.error("有効なページ数を入力してください");
 			return;
 		}
 
@@ -49,16 +69,19 @@ export default function TabTwoScreen() {
 		});
 
 		const data = await response.json();
+		toast.success(`進捗を登録しました: ${JSON.stringify(data)}`);
 	};
 
 	return (
 		<YStack flex={1} items="center" gap="$6" px="$5" pt="$6" bg="$background">
+			<Toaster position="bottom-right" />
 			<Card
 				width="100%"
 				maxWidth={700}
 				size="$4"
 				borderWidth={1}
 				borderColor="$borderColor"
+				p="$3"
 			>
 				<Card.Header p="$4" gap="$1">
 					<H3>進捗を記録</H3>
@@ -105,6 +128,8 @@ export default function TabTwoScreen() {
 						</Button>
 					</XStack>
 				</Card.Header>
+				<Strong>メモ</Strong>
+				<TextArea borderWidth={2} />
 			</Card>
 		</YStack>
 	);
