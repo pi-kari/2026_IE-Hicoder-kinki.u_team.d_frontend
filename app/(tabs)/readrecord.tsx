@@ -1,11 +1,11 @@
-import { BookSelect, type SelectItem } from "components/BookSelect";
+import { Check, ChevronDown } from "@tamagui/lucide-icons-2";
 import { fetch } from "expo/fetch";
 import { useEffect, useState } from "react";
-import { Button, Card, H3, Input, XStack, YStack } from "tamagui";
+import { Button, Card, H3, Input, Select, XStack, YStack } from "tamagui";
 
 export default function TabTwoScreen() {
 	// 本の一覧
-	const [books, setBooks] = useState<SelectItem[]>([]);
+	const [books, setBooks] = useState<string[]>(["apple", "banana", "cherry"]);
 
 	// 選択された本のIDと、入力されたページ数を保持するステートを追加
 	const [selectedBookId, setSelectedBookId] = useState<string>("");
@@ -13,7 +13,7 @@ export default function TabTwoScreen() {
 
 	useEffect(() => {
 		// 例としての初期データ
-		setBooks([{ name: "apple" }, { name: "banana" }]);
+		setBooks(["apple", "banana", "cherry"]);
 
 		const fetchBooks = async () => {
 			try {
@@ -44,7 +44,7 @@ export default function TabTwoScreen() {
 			},
 			body: JSON.stringify({
 				bookId: selectedBookId,
-				pagesRead: Number(pagesRead), // 数値に変換
+				pagesRead: Number(pagesRead),
 			}),
 		});
 
@@ -63,15 +63,34 @@ export default function TabTwoScreen() {
 				<Card.Header p="$4" gap="$1">
 					<H3>進捗を記録</H3>
 					<XStack items="center" gap="$2" width="100%" pt="$3">
-						{/* ▼ 3. BookSelect に選択状態と変更時のハンドラーを繋ぐ */}
-						<BookSelect
-							items={books}
-							size="$5"
+						<Select
 							value={selectedBookId}
 							onValueChange={(val: string) => setSelectedBookId(val)}
 						>
-							書籍を選択
-						</BookSelect>
+							<Select.Trigger
+								width={160}
+								iconAfter={ChevronDown}
+								rounded={"$3"}
+							>
+								<Select.Value placeholder="書籍を選択" />
+							</Select.Trigger>
+
+							<Select.Content>
+								<Select.Viewport>
+									<Select.Group>
+										{books.map((book, index) => (
+											<Select.Item key={book} index={index} value={book}>
+												<Select.ItemText>{book}</Select.ItemText>
+												<Select.ItemIndicator>
+													<Check size={16} />
+												</Select.ItemIndicator>
+											</Select.Item>
+										))}
+									</Select.Group>
+								</Select.Viewport>
+							</Select.Content>
+						</Select>
+
 						<Input
 							theme="surface1"
 							flex={1}
