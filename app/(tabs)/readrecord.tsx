@@ -1,7 +1,9 @@
 import { Check, ChevronDown } from "@tamagui/lucide-icons-2";
 import { Toaster, toast } from "@tamagui/toast/v2";
+import { useAuth } from "context/AuthContext";
 import { fetch } from "expo/fetch";
 import { useEffect, useState } from "react";
+import { BookResponseSchema, ProgressResponseSchema } from "schemas/openapi";
 import {
 	Button,
 	Card,
@@ -15,24 +17,40 @@ import {
 } from "tamagui";
 
 export default function TabTwoScreen() {
+	const { userId } = useAuth();
 	// 本の一覧
-	const [books, setBooks] = useState<string[]>(["apple", "banana", "cherry"]);
+	const [books, setBooks] = useState<{ id: number; title: string }[]>([
+		{ id: 1, title: "apple" },
+		{ id: 2, title: "banana" },
+		{ id: 3, title: "cherry" },
+	]);
 
 	// 選択された本のIDと、入力されたページ数を保持するステートを追加
-	const [selectedBookId, setSelectedBookId] = useState<string>("");
+	const [selectedBookId, setSelectedBookId] = useState<number | "">("");
 	const [pagesRead, setPagesRead] = useState<string>("");
 
 	useEffect(() => {
 		// 例としての初期データ
-		setBooks(["apple", "banana", "cherry"]);
+		setBooks([
+			{ id: 1, title: "apple" },
+			{ id: 2, title: "banana" },
+			{ id: 3, title: "cherry" },
+		]);
 
 		const fetchBooks = async () => {
 			try {
 				const response = await fetch(
-					"https://jsonplaceholder.typicode.com/posts/1",
-				);
-				const json = await response.json();
+					`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${userId}/book/list/`,
+				)
+					.then((res) => res.json())
+					.then((res) => BookResponseSchema.array().parse(res));
 				// 必要に応じてここで setBooks を行う
+				setBooks(
+					response.map((book) => ({
+						id: book.book_id,
+						title: book.book_title,
+					})),
+				);
 			} catch (error) {
 				console.error("Failed to fetch books:", error);
 			}
@@ -57,19 +75,23 @@ export default function TabTwoScreen() {
 		}
 
 		// サーバーへPOSTリクエストを送信
-		const response = await fetch("https://jsonplaceholder.typicode.com/posts", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
+		const response = await fetch(
+			`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${userId}/book/progress/update/`,
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					book_id: selectedBookId,
+					pages_read: Number(pagesRead),
+				}),
 			},
-			body: JSON.stringify({
-				bookId: selectedBookId,
-				pagesRead: Number(pagesRead),
-			}),
-		});
+		)
+			.then((res) => res.json())
+			.then((res) => ProgressResponseSchema.parse(res));
 
-		const data = await response.json();
-		toast.success(`進捗を登録しました: ${JSON.stringify(data)}`);
+		toast.success(`進捗を登録しました: ${response.book_id}`);
 	};
 
 	return (
@@ -102,8 +124,12 @@ export default function TabTwoScreen() {
 								<Select.Viewport>
 									<Select.Group>
 										{books.map((book, index) => (
-											<Select.Item key={book} index={index} value={book}>
-												<Select.ItemText>{book}</Select.ItemText>
+											<Select.Item
+												key={book.id}
+												index={index}
+												value={book.id.toString()}
+											>
+												<Select.ItemText>{book.title}</Select.ItemText>
 												<Select.ItemIndicator>
 													<Check size={16} />
 												</Select.ItemIndicator>
