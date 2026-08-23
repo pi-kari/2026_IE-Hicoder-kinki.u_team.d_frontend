@@ -1,6 +1,7 @@
 import { Plus } from "@tamagui/lucide-icons-2";
 import { ProfileWidget } from "components/widgets/ProfileWidget";
 import { TreeWidget } from "components/widgets/TreeWidget";
+import { Link } from "expo-router";
 import { Button, Card, Image, XStack, YStack } from "tamagui";
 
 const books = [
@@ -31,7 +32,9 @@ export default function ProfScreen() {
 						/>
 					))}
 
-					<Button size="$4" circular icon={Plus} />
+					<Link href="/(tabs)/(main-pages)/books-information" asChild>
+						<Button size="$4" circular icon={Plus} />
+					</Link>
 				</XStack>
 			</Card>
 			<TreeWidget />
