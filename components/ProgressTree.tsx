@@ -59,7 +59,7 @@ export function ProgressTree() {
 		<Image
 			source={TREE_IMAGES[index]}
 			style={{ width: 200, height: 200, resizeMode: "contain" }}
-			accessibilityLabel={`成長段階 ${index + 1} の木`}
+			aria-label={`成長段階 ${index + 1} の木`}
 		/>
 	);
 }
