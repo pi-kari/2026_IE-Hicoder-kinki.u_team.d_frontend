@@ -1,5 +1,6 @@
+import { ProgressTree } from "components/ProgressTree";
 import { Link } from "expo-router";
-import { Button, Card, H2, Image, Paragraph, XStack } from "tamagui";
+import { Button, Card, H2, XStack } from "tamagui";
 
 export function TreeWidget() {
 	return (
@@ -13,7 +14,6 @@ export function TreeWidget() {
 			>
 				<Card.Header p="$4">
 					<H2>あなたの木</H2>
-					<Paragraph>（成長段階とか書いてみる？）</Paragraph>
 				</Card.Header>
 				<Card.Footer p="$4">
 					<XStack flex={1} />
@@ -22,12 +22,13 @@ export function TreeWidget() {
 					</Link>
 				</Card.Footer>
 				<Card.Background items="center">
-					<Image
+					{/* <Image
 						objectFit="contain"
 						width={256}
 						height={256}
 						src="https://placehold.co/256x256/png?text=TREE"
-					></Image>
+					></Image> */}
+					<ProgressTree />
 				</Card.Background>
 			</Card>
 		</XStack>
