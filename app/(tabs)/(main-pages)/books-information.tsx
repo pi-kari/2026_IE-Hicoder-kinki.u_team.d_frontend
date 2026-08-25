@@ -1,5 +1,6 @@
 import { Plus } from "@tamagui/lucide-icons-2";
 import { useAuth } from "context/AuthContext";
+import { getItem, setItem } from "context/sessionStorage";
 import { useState } from "react";
 import { BookResponseSchema } from "schemas/openapi";
 import { Button, Card, H3, Input, XStack, YStack } from "tamagui";
@@ -7,6 +8,7 @@ import { Button, Card, H3, Input, XStack, YStack } from "tamagui";
 export default function BooksInformationScreen() {
 	const [selectedBook, setSelectedBook] = useState<string>("");
 	const { userId } = useAuth();
+	const [book_pages, setBookPages] = useState<number | null>(null);
 
 	const submitProgress = async () => {
 		// サーバーへPOSTリクエストを送信
@@ -21,14 +23,23 @@ export default function BooksInformationScreen() {
 					user_id: userId,
 					book_title: selectedBook,
 					status: "string",
-					book_page: 0,
+					book_page: book_pages,
 				}),
 			},
 		)
 			.then((res) => res.json())
 			.then((res) => BookResponseSchema.parse(res));
 
-		// toast.success(`進捗を登録しました: ${response.book_id}`);
+		const storedBookIds = await getItem("registered_book_ids");
+		const registeredBookIds: number[] = storedBookIds
+			? JSON.parse(storedBookIds)
+			: [];
+		if (!registeredBookIds.includes(response.book_id)) {
+			registeredBookIds.push(response.book_id);
+		}
+		await setItem("registered_book_ids", JSON.stringify(registeredBookIds));
+
+		// toast.success(`書籍を登録しました: ${response.book_id}`);
 	};
 
 	return (
@@ -53,6 +64,15 @@ export default function BooksInformationScreen() {
 							flex={1}
 							size="$5"
 							placeholder="本のタイトルを入力"
+						/>
+						<Input
+							value={book_pages !== null ? book_pages.toString() : ""}
+							onChangeText={(text) => setBookPages(Number(text))}
+							theme="surface1"
+							flex={1}
+							size="$5"
+							placeholder="ページ数を入力"
+							keyboardType="numeric"
 						/>
 						<Button size="$5" onClick={submitProgress}>
 							登録

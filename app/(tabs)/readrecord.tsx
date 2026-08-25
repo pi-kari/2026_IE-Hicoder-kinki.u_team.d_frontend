@@ -1,6 +1,7 @@
 import { Check, ChevronDown } from "@tamagui/lucide-icons-2";
 import { Toaster, toast } from "@tamagui/toast/v2";
 import { useAuth } from "context/AuthContext";
+import { getItem } from "context/sessionStorage";
 import { fetch } from "expo/fetch";
 import { useEffect, useState } from "react";
 import { BookResponseSchema, ProgressResponseSchema } from "schemas/openapi";
@@ -17,7 +18,7 @@ import {
 } from "tamagui";
 
 export default function TabTwoScreen() {
-	const { userId } = useAuth();
+	const { userId, isLoading } = useAuth();
 	// 本の一覧
 	const [books, setBooks] = useState<{ id: number; title: string }[]>([
 		{ id: 1, title: "apple" },
@@ -26,10 +27,14 @@ export default function TabTwoScreen() {
 	]);
 
 	// 選択された本のIDと、入力されたページ数を保持するステートを追加
-	const [selectedBookId, setSelectedBookId] = useState<number | "">("");
+	const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
 	const [pagesRead, setPagesRead] = useState<string>("");
 
 	useEffect(() => {
+		if (isLoading || userId === null) {
+			return;
+		}
+
 		// 例としての初期データ
 		setBooks([
 			{ id: 1, title: "apple" },
@@ -51,16 +56,25 @@ export default function TabTwoScreen() {
 						title: book.book_title,
 					})),
 				);
+
+				const storedBookIds = await getItem("registered_book_ids");
+				const registeredBookIds: number[] = storedBookIds
+					? JSON.parse(storedBookIds)
+					: [];
+				const lastRegisteredBookId = registeredBookIds.at(-1);
+				if (lastRegisteredBookId !== undefined) {
+					setSelectedBookId(lastRegisteredBookId);
+				}
 			} catch (error) {
 				console.error("Failed to fetch books:", error);
 			}
 		};
 		fetchBooks();
-	}, []);
+	}, [isLoading, userId]);
 
 	// 登録ボタンが押されたときの送信処理
 	const submitProgress = async () => {
-		if (!selectedBookId) {
+		if (selectedBookId === null) {
 			toast.error("本を選択してください");
 			return;
 		}
@@ -76,7 +90,7 @@ export default function TabTwoScreen() {
 
 		// サーバーへPOSTリクエストを送信
 		const response = await fetch(
-			`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${userId}/book/progress/update/`,
+			`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/book/progress/update/`,
 			{
 				method: "POST",
 				headers: {
@@ -109,8 +123,8 @@ export default function TabTwoScreen() {
 					<H3>進捗を記録</H3>
 					<XStack items="center" gap="$2" width="100%" pt="$3">
 						<Select
-							value={selectedBookId}
-							onValueChange={(val: string) => setSelectedBookId(val)}
+							value={selectedBookId === null ? "" : String(selectedBookId)}
+							onValueChange={(val: string) => setSelectedBookId(Number(val))}
 						>
 							<Select.Trigger
 								width={160}
