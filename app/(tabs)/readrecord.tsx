@@ -18,7 +18,7 @@ import {
 } from "tamagui";
 
 export default function TabTwoScreen() {
-	const { userId } = useAuth();
+	const { userId, isLoading } = useAuth();
 	// 本の一覧
 	const [books, setBooks] = useState<{ id: number; title: string }[]>([
 		{ id: 1, title: "apple" },
@@ -31,6 +31,10 @@ export default function TabTwoScreen() {
 	const [pagesRead, setPagesRead] = useState<string>("");
 
 	useEffect(() => {
+		if (isLoading || userId === null) {
+			return;
+		}
+
 		// 例としての初期データ
 		setBooks([
 			{ id: 1, title: "apple" },
@@ -66,7 +70,7 @@ export default function TabTwoScreen() {
 			}
 		};
 		fetchBooks();
-	}, []);
+	}, [isLoading, userId]);
 
 	// 登録ボタンが押されたときの送信処理
 	const submitProgress = async () => {
