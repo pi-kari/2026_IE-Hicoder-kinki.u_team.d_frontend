@@ -26,7 +26,7 @@ export const HTTPValidationErrorSchema = z.object({
 
 export const ProgressResponseSchema = z.object({
 	book_id: z.number(),
-	reading_history: z.array(z.string()),
+	reading_history: z.array(z.object({date: z.string(),pages_read: z.number(),})),
 	progress: z.number(),
 	tree_ratio: z.number(),
 	tree_state: z.number(),
