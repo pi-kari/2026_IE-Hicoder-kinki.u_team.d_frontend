@@ -8,6 +8,7 @@ import { Button, Card, H3, Input, XStack, YStack } from "tamagui";
 export default function BooksInformationScreen() {
 	const [selectedBook, setSelectedBook] = useState<string>("");
 	const { userId } = useAuth();
+	const [book_pages, setBookPages] = useState<number | null>(null);
 
 	const submitProgress = async () => {
 		// サーバーへPOSTリクエストを送信
@@ -22,7 +23,7 @@ export default function BooksInformationScreen() {
 					user_id: userId,
 					book_title: selectedBook,
 					status: "string",
-					book_page: 0,
+					book_page: book_pages,
 				}),
 			},
 		)
@@ -63,6 +64,15 @@ export default function BooksInformationScreen() {
 							flex={1}
 							size="$5"
 							placeholder="本のタイトルを入力"
+						/>
+						<Input
+							value={book_pages !== null ? book_pages.toString() : ""}
+							onChangeText={(text) => setBookPages(Number(text))}
+							theme="surface1"
+							flex={1}
+							size="$5"
+							placeholder="ページ数を入力"
+							keyboardType="numeric"
 						/>
 						<Button size="$5" onClick={submitProgress}>
 							登録
