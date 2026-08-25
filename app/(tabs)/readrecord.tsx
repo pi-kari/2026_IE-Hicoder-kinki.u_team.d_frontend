@@ -86,7 +86,7 @@ export default function TabTwoScreen() {
 
 		// サーバーへPOSTリクエストを送信
 		const response = await fetch(
-			`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${userId}/book/progress/update/`,
+			`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/book/progress/update/`,
 			{
 				method: "POST",
 				headers: {
