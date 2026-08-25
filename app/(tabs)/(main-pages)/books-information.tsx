@@ -28,7 +28,7 @@ export default function BooksInformationScreen() {
 			.then((res) => res.json())
 			.then((res) => BookResponseSchema.parse(res));
 
-		// toast.success(`進捗を登録しました: ${response.book_id}`);
+		// toast.success(`書籍を登録しました: ${response.book_id}`);
 	};
 
 	return (
