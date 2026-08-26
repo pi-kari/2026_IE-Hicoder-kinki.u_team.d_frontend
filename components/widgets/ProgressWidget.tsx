@@ -1,13 +1,34 @@
+import { useAuth } from "context/AuthContext";
+import { fetch } from "expo/fetch";
 import { Link } from "expo-router";
+import { useEffect, useState } from "react";
+import { BookResponseSchema } from "schemas/openapi";
 import { Button, Card, H2, Paragraph, Progress, XStack, YStack } from "tamagui";
-
-const progressItems = [
-	{ label: "一冊目のタイトル", value: 80, visible: true },
-	{ label: "二冊目のタイトル", value: 60, visible: true },
-	{ label: "三冊目のタイトル", value: 40, visible: true },
-];
+import type z from "zod";
 
 export function ProgressWidget() {
+	const { userId } = useAuth();
+	const [books, setBooks] = useState<z.infer<typeof BookResponseSchema>[]>([]);
+
+	useEffect(() => {
+		// セッション復元前 / 未ログインのときは叩かない
+		if (!userId) return;
+
+		const fetchProgress = async () => {
+			try {
+				const response = await fetch(
+					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/`,
+				)
+					.then((res) => res.json())
+					.then((res) => BookResponseSchema.array().parse(res));
+				setBooks(response);
+			} catch (error) {
+				console.error("Failed to fetch progress:", error);
+			}
+		};
+		fetchProgress();
+	}, [userId]);
+
 	return (
 		<Card
 			width="100%"
@@ -21,16 +42,14 @@ export function ProgressWidget() {
 			</Card.Header>
 			<YStack px="$4" pb="$4">
 				<YStack gap="$3">
-					{progressItems
-						.filter((item) => item.visible)
-						.map((item) => (
-							<YStack key={item.label} gap="$1">
-								<Paragraph>{item.label}</Paragraph>
-								<Progress value={item.value} max={100} height="$1.5">
-									<Progress.Indicator background="$green10" />
-								</Progress>
-							</YStack>
-						))}
+					{books.slice(-5).map((book) => (
+						<YStack key={book.book_id} gap="$1">
+							<Paragraph>{book.book_title}</Paragraph>
+							<Progress value={book.total_progress} max={100} height="$1.5">
+								<Progress.Indicator background="$green10" />
+							</Progress>
+						</YStack>
+					))}
 				</YStack>
 			</YStack>
 			<Card.Footer p="$4">

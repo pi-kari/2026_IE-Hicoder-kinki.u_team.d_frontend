@@ -1,6 +1,7 @@
-import { Plus } from "@tamagui/lucide-icons-2";
+import { Plus } from "@tamagui/lucide-icons-2/icons/Plus";
 import { useAuth } from "context/AuthContext";
 import { getItem, setItem } from "context/sessionStorage";
+import { fetch } from "expo/fetch";
 import { useState } from "react";
 import { BookResponseSchema } from "schemas/openapi";
 import { Button, Card, H3, Input, XStack, YStack } from "tamagui";
@@ -13,17 +14,16 @@ export default function BooksInformationScreen() {
 	const submitProgress = async () => {
 		// サーバーへPOSTリクエストを送信
 		const response = await fetch(
-			`${process.env.EXPO_PUBLIC_BACKEND_URL}/new_book/`,
+			`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books`,
 			{
-				method: "POST",
+				method: "PUT",
 				headers: {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					user_id: userId,
 					book_title: selectedBook,
 					status: "string",
-					book_page: book_pages,
+					book_pages: book_pages,
 				}),
 			},
 		)

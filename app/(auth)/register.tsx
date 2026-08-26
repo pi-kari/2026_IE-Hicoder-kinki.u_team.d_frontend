@@ -1,3 +1,4 @@
+import { fetch } from "expo/fetch";
 import { useState } from "react";
 import { Button, H2, Input, Paragraph, YStack } from "tamagui";
 import { useAuth } from "../../context/AuthContext";
@@ -21,9 +22,8 @@ export default function RegisterScreen() {
 		setIsSubmitting(true);
 		try {
 			// 1. バックエンドの登録APIを叩く
-			//    末尾のスラッシュは必須（FastAPI が /new_user -> /new_user/ に 307 リダイレクトするため）
-			const response = await fetch(`${BACKEND_URL}/new_user/`, {
-				method: "POST",
+			const response = await fetch(`${BACKEND_URL}/users/`, {
+				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ username: trimmedName }),
 			});

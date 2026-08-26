@@ -1,10 +1,15 @@
-import { Check, ChevronDown } from "@tamagui/lucide-icons-2";
+import { Check } from "@tamagui/lucide-icons-2/icons/Check";
+import { ChevronDown } from "@tamagui/lucide-icons-2/icons/ChevronDown";
 import { Toaster, toast } from "@tamagui/toast/v2";
 import { useAuth } from "context/AuthContext";
 import { getItem } from "context/sessionStorage";
 import { fetch } from "expo/fetch";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { BookResponseSchema, ProgressResponseSchema } from "schemas/openapi";
+import {
+	BookResponseSchema,
+	ProgressUpdateResponseSchema,
+} from "schemas/openapi";
 import {
 	Button,
 	Card,
@@ -18,7 +23,9 @@ import {
 } from "tamagui";
 
 export default function TabTwoScreen() {
+	const router = useRouter();
 	const { userId, isLoading } = useAuth();
+
 	// 本の一覧
 	const [books, setBooks] = useState<{ id: number; title: string }[]>([
 		{ id: 1, title: "apple" },
@@ -45,11 +52,15 @@ export default function TabTwoScreen() {
 		const fetchBooks = async () => {
 			try {
 				const response = await fetch(
-					`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${userId}/book/list/`,
+					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books`,
 				)
 					.then((res) => res.json())
 					.then((res) => BookResponseSchema.array().parse(res));
-				// 必要に応じてここで setBooks を行う
+
+				if (response.length === 0) {
+					router.push("/books-information");
+				}
+
 				setBooks(
 					response.map((book) => ({
 						id: book.book_id,
@@ -70,7 +81,7 @@ export default function TabTwoScreen() {
 			}
 		};
 		fetchBooks();
-	}, [isLoading, userId]);
+	}, [isLoading, userId, router]);
 
 	// 登録ボタンが押されたときの送信処理
 	const submitProgress = async () => {
@@ -88,24 +99,23 @@ export default function TabTwoScreen() {
 			return;
 		}
 
-		// サーバーへPOSTリクエストを送信
+		// サーバーへPUTリクエストを送信
 		const response = await fetch(
-			`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/book/progress/update/`,
+			`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/${selectedBookId}/progress`,
 			{
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					book_id: selectedBookId,
 					pages_read: Number(pagesRead),
 				}),
 			},
 		)
 			.then((res) => res.json())
-			.then((res) => ProgressResponseSchema.parse(res));
+			.then((res) => ProgressUpdateResponseSchema.parse(res));
 
-		toast.success(`進捗を登録しました: ${response.book_id}`);
+		toast.success(`進捗を登録しました: ${response.total_progress}`);
 	};
 
 	return (
