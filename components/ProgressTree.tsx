@@ -2,7 +2,10 @@ import { useAuth } from "context/AuthContext";
 import { fetch } from "expo/fetch";
 import { useEffect, useState } from "react";
 import { Image } from "react-native";
-import { ProgressResponseSchema } from "schemas/openapi";
+import {
+	ProgressResponseSchema,
+	ResponseTreeStateSchema,
+} from "schemas/openapi";
 import { z } from "zod";
 
 // require はビルド時に静的解決されるため、変数で組み立てず配列に列挙する
@@ -25,21 +28,17 @@ export function ProgressTree() {
 
 		const fetchProgress = async () => {
 			try {
+				const bookId = 5; // ここは適切な本のIDに置き換える必要があります
 				const response = await fetch(
-					`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${userId}/books/totalpages/`,
+					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/${bookId}/tree/`,
 					{
 						method: "GET",
 					},
-				);
+				)
+					.then((res) => res.json())
+					.then((res) => ResponseTreeStateSchema.parse(res));
 
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-
-				const json = await response.json();
-				const books = ProgressListSchema.parse(json);
-				const total = books.reduce((sum, book) => sum + book.progress, 0);
-				setProgress(total);
+				setProgress(response.tree_state);
 			} catch (error) {
 				console.error("進捗の取得に失敗しました:", error);
 			}

@@ -1,16 +1,38 @@
-import { Plus } from "@tamagui/lucide-icons-2";
+import { Plus } from "@tamagui/lucide-icons-2/icons/Plus";
 import { ProfileWidget } from "components/widgets/ProfileWidget";
 import { TreeWidget } from "components/widgets/TreeWidget";
+import { useAuth } from "context/AuthContext";
 import { Link } from "expo-router";
+import { useEffect, useState } from "react";
+import { BookResponseSchema } from "schemas/openapi";
 import { Button, Card, Image, XStack, YStack } from "tamagui";
-
-const books = [
-	{ id: "1", imageUrl: "https://placehold.co/200x280/png?text=1" },
-	{ id: "2", imageUrl: "https://placehold.co/200x280/png?text=2" },
-	{ id: "3", imageUrl: "https://placehold.co/200x280/png?text=3" },
-];
+import type z from "zod";
 
 export default function ProfScreen() {
+	const { userId } = useAuth();
+	const [books, setBooks] = useState<z.infer<typeof BookResponseSchema>[]>([]);
+
+	useEffect(() => {
+		// セッション復元前 / 未ログインのときは叩かない
+		if (!userId) return;
+
+		const fetchProgress = async () => {
+			try {
+				const response = await fetch(
+					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books`,
+				)
+					.then((res) => res.json())
+					.then((res) => BookResponseSchema.array().parse(res));
+
+				setBooks(response);
+			} catch (error) {
+				console.error("進捗の取得に失敗しました:", error);
+			}
+		};
+
+		fetchProgress();
+	}, [userId]);
+
 	return (
 		<YStack flex={1} p="$4" items="center" justify="center" gap="$4">
 			<ProfileWidget />
@@ -21,10 +43,10 @@ export default function ProfScreen() {
 				borderColor="$borderColor"
 			>
 				<XStack p="$3" gap="$3" items="center">
-					{books.slice(0, 3).map((book) => (
+					{books.slice(-3).map((book) => (
 						<Image
-							key={book.id}
-							src={book.imageUrl}
+							key={book.book_id}
+							src={`https://placehold.co/200x280/png?text=${book.book_id}`}
 							width={65}
 							height={90}
 							objectFit="cover"
