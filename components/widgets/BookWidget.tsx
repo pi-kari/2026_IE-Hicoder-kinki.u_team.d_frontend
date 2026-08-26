@@ -1,4 +1,4 @@
-import { Plus } from "@tamagui/lucide-icons-2";
+import { Plus } from "@tamagui/lucide-icons-2/icons/Plus";
 import { Button, Card, Image, XStack } from "tamagui";
 
 export function BookWidget() {

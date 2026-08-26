@@ -1,4 +1,6 @@
-import { AudioWaveform, ClipboardPenLine, Home } from "@tamagui/lucide-icons-2";
+import { AudioWaveform } from "@tamagui/lucide-icons-2/icons/AudioWaveform";
+import { ClipboardPenLine } from "@tamagui/lucide-icons-2/icons/ClipboardPenLine";
+import { Home } from "@tamagui/lucide-icons-2/icons/Home";
 import { Link, Tabs } from "expo-router";
 import { Button, useTheme, View } from "tamagui";
 
