@@ -66,7 +66,7 @@ export default function ProfScreen() {
 						/>
 					))}
 
-					<Button size="$4" circular icon={Plus} />
+						<Button size="$4" circular icon={Plus} />
 				</XStack>
 			</Card>
 			<Card
@@ -82,7 +82,7 @@ export default function ProfScreen() {
 				<Card.Footer p="$4">
 					<XStack flex={1} />
 					<Link href="/books" asChild>
-						<Button rounded="$10">詳細を見る</Button>
+										<Button style={{ borderRadius: 10 }}>詳細を見る</Button>
 					</Link>
 				</Card.Footer>
 				<Card.Background items="center">
