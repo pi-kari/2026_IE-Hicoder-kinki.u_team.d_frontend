@@ -41,7 +41,7 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name="readrecord"
+				name="record"
 				options={{
 					title: "Tab Two",
 					tabBarShowLabel: false,
@@ -64,7 +64,7 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name="prof"
+				name="profile"
 				options={{
 					title: "Tab Three",
 					tabBarShowLabel: false,

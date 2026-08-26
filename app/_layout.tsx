@@ -39,7 +39,7 @@ function useProtectedRoute() {
 			router.replace("/(auth)/register");
 		} else if (userId && inAuthGroup) {
 			// セッションがあり、認証画面にいる場合はメイン画面へ
-			router.replace("/(tabs)/readrecord");
+			router.replace("/(tabs)/record");
 		}
 	}, [userId, isLoading, segments, router]);
 }

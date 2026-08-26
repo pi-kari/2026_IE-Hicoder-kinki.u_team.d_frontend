@@ -17,7 +17,7 @@ export function TreeWidget() {
 				</Card.Header>
 				<Card.Footer p="$4">
 					<XStack flex={1} />
-					<Link href="/books-list" asChild>
+					<Link href="/books" asChild>
 						<Button rounded="$10">詳細を見る</Button>
 					</Link>
 				</Card.Footer>
