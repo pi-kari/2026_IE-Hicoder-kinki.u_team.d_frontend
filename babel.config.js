@@ -1,5 +1,6 @@
 module.exports = (api) => {
-  api.cache(true)
+  // NODE_ENV ごとに設定が変わる (disableExtraction) ため、env をキャッシュキーに含める
+  api.cache.using(() => process.env.NODE_ENV)
   return {
     presets: [['babel-preset-expo', { jsxRuntime: 'automatic' }]],
     plugins: [
@@ -8,7 +9,7 @@ module.exports = (api) => {
         {
           components: ['tamagui'],
           config: './tamagui.config.ts',
-          logTimings: true,
+          logTimings: false,
           disableExtraction: process.env.NODE_ENV === 'development',
         },
       ],

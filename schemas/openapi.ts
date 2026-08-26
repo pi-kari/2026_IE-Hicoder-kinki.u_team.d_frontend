@@ -1,15 +1,58 @@
 import { z } from "zod";
 
 export const BookCreateSchema = z.object({
-	user_id: z.number(),
 	book_title: z.string(),
 	status: z.string(),
-	book_page: z.number(),
+	book_pages: z.number(),
 });
 
 export const BookResponseSchema = z.object({
 	book_id: z.number(),
+	status: z.string(),
 	book_title: z.string(),
+	book_pages: z.number(),
+	total_progress: z.number(),
+	tree_ratio: z.number(),
+	tree_state: z.number(),
+});
+
+export const ProgressRequestSchemaSchema = z.object({
+	pages_read: z.number(),
+});
+
+export const ProgressUpdateResponseSchema = z.object({
+	total_progress: z.number(),
+	tree_ratio: z.number(),
+	tree_state: z.number(),
+});
+
+export const ReadingHistorySchema = z.object({
+	date: z.string(),
+	progress: z.number(),
+});
+
+export const ResponseTreeStateSchema = z.object({
+	tree_ratio: z.number(),
+	tree_state: z.number(),
+});
+
+export const TodayProgressResponseSchema = z.object({
+	progress: z.number(),
+});
+
+export const UserCreateSchema = z.object({
+	username: z.string(),
+	user_mail_address: z.union([z.string(), z.unknown()]).optional(),
+});
+
+export const UserNameUpdateSchema = z.object({
+	username: z.string(),
+});
+
+export const UserResponseSchema = z.object({
+	user_id: z.number(),
+	username: z.string(),
+	number_of_books: z.number(),
 });
 
 export const ValidationErrorSchema = z.object({
@@ -25,34 +68,6 @@ export const HTTPValidationErrorSchema = z.object({
 });
 
 export const ProgressResponseSchema = z.object({
-	book_id: z.number(),
-	reading_history: z.array(z.object({date: z.string(),pages_read: z.number(),})),
-	progress: z.number(),
-	tree_ratio: z.number(),
-	tree_state: z.number(),
-});
-
-export const ProgressUpdateSchema = z.object({
-	book_id: z.number(),
-	pages_read: z.number(),
-});
-
-export const ResponseTreeStateSchema = z.object({
-	book_id: z.number(),
-	tree_state: z.number(),
-});
-
-export const UserCreateSchema = z.object({
-	username: z.string(),
-	user_mail_address: z.union([z.string(), z.unknown()]).optional(),
-});
-
-export const UserNameUpdateSchema = z.object({
-	username: z.string(),
-});
-
-export const UserResponseSchema = z.object({
-	user_id: z.number(),
-	username: z.string(),
-	user_mail_address: z.union([z.string(), z.unknown()]).optional(),
+	total_progress: z.number(),
+	history: z.array(ReadingHistorySchema),
 });

@@ -5,7 +5,8 @@
 	"main": "expo-router/entry",
 	"scripts": {
 		"upgrade:tamagui": "bun x npm-check-updates -u '*tamagui*' '@tamagui/*' && bun install",
-		"start": "bun x expo start -c",
+		"start": "bun x expo start",
+		"start:clean": "bun x expo start -c",
 		"android": "expo run:android",
 		"ios": "expo run:ios",
 		"web": "expo start --web",
