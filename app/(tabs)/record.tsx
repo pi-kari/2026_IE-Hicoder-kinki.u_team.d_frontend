@@ -81,7 +81,7 @@ export default function TabTwoScreen() {
 			}
 		};
 		fetchBooks();
-	}, [isLoading, userId]);
+	}, [isLoading, userId, router]);
 
 	// 登録ボタンが押されたときの送信処理
 	const submitProgress = async () => {
