@@ -12,7 +12,16 @@ export default function BooksInformationScreen() {
 	const [book_pages, setBookPages] = useState<number | null>(null);
 
 	const submitProgress = async () => {
-		// サーバーへPOSTリクエストを送信
+		if (!userId) {
+				console.error("ユーザーIDが取得できていません！");
+				return;
+			}
+
+
+
+
+
+		// サーバーへPUTリクエストを送信
 		const response = await fetch(
 			`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books`,
 			{
@@ -26,20 +35,28 @@ export default function BooksInformationScreen() {
 					book_pages: book_pages,
 				}),
 			},
-		)
-			.then((res) => res.json())
-			.then((res) => BookResponseSchema.parse(res));
+		);
+		if (!response.ok) {
+			console.error("backendでエラーが発生しました:", response.statusText);
+			return;
+		}
+		const Data = await response.json();
+		const responseData = BookResponseSchema.parse(Data);
 
+
+		
+
+		
 		const storedBookIds = await getItem("registered_book_ids");
 		const registeredBookIds: number[] = storedBookIds
 			? JSON.parse(storedBookIds)
 			: [];
-		if (!registeredBookIds.includes(response.book_id)) {
-			registeredBookIds.push(response.book_id);
+		if (!registeredBookIds.includes(responseData.book_id)) {
+			registeredBookIds.push(responseData.book_id);
 		}
 		await setItem("registered_book_ids", JSON.stringify(registeredBookIds));
 
-		// toast.success(`書籍を登録しました: ${response.book_id}`);
+		// toast.success(`書籍を登録しました: ${responseData.book_id}`);
 	};
 
 	return (
