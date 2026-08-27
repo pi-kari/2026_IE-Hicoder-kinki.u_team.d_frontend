@@ -12,7 +12,7 @@ export default function BooksInformationScreen() {
 	const [book_pages, setBookPages] = useState<number | null>(null);
 
 	const submitProgress = async () => {
-		// サーバーへPOSTリクエストを送信
+		// サーバーへPUTリクエストを送信
 		const response = await fetch(
 			`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books`,
 			{
