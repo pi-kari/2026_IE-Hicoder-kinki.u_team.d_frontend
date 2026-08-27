@@ -42,12 +42,12 @@ export default function TabTwoScreen() {
 			return;
 		}
 
-		// // 例としての初期データ
-		// setBooks([
-		// 	{ id: 1, title: "apple" },
-		// 	{ id: 2, title: "banana" },
-		// 	{ id: 3, title: "cherry" },
-		// ]);
+		// 例としての初期データ
+		setBooks([
+			{ id: 1, title: "apple" },
+			{ id: 2, title: "banana" },
+			{ id: 3, title: "cherry" },
+		]);
 
 		const fetchBooks = async () => {
 			try {
