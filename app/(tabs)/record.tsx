@@ -115,7 +115,7 @@ export default function TabTwoScreen() {
 			.then((res) => res.json())
 			.then((res) => ProgressUpdateResponseSchema.parse(res));
 
-		toast.success(`進捗を登録しました: ${response.total_progress}`);
+		toast.success(`進捗を登録しました: ${response.tree_ratio}`);
 	};
 
 	return (
