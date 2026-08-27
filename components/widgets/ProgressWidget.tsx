@@ -45,7 +45,7 @@ export function ProgressWidget() {
 					{books.slice(-5).map((book) => (
 						<YStack key={book.book_id} gap="$1">
 							<Paragraph>{book.book_title}</Paragraph>
-							<Progress value={book.total_progress} max={100} height="$1.5">
+							<Progress value={book.tree_ratio} max={100} height="$1.5">
 								<Progress.Indicator background="$green10" />
 							</Progress>
 						</YStack>
