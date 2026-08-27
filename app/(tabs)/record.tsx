@@ -42,12 +42,12 @@ export default function TabTwoScreen() {
 			return;
 		}
 
-		// 例としての初期データ
-		setBooks([
-			{ id: 1, title: "apple" },
-			{ id: 2, title: "banana" },
-			{ id: 3, title: "cherry" },
-		]);
+		// // 例としての初期データ
+		// setBooks([
+		// 	{ id: 1, title: "apple" },
+		// 	{ id: 2, title: "banana" },
+		// 	{ id: 3, title: "cherry" },
+		// ]);
 
 		const fetchBooks = async () => {
 			try {
@@ -99,7 +99,7 @@ export default function TabTwoScreen() {
 			return;
 		}
 
-		// サーバーへPUTリクエストを送信
+		// サーバーへPOSTリクエストを送信
 		const response = await fetch(
 			`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/${selectedBookId}/progress`,
 			{
@@ -115,7 +115,7 @@ export default function TabTwoScreen() {
 			.then((res) => res.json())
 			.then((res) => ProgressUpdateResponseSchema.parse(res));
 
-		toast.success(`進捗を登録しました: ${response.tree_ratio}`);
+		toast.success(`進捗を登録しました: ${response.total_progress}`);
 	};
 
 	return (
