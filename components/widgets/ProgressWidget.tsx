@@ -17,7 +17,7 @@ export function ProgressWidget() {
 		const fetchProgress = async () => {
 			try {
 				const response = await fetch(
-					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/`,
+					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books`,
 				)
 					.then((res) => res.json())
 					.then((res) => BookResponseSchema.array().parse(res));

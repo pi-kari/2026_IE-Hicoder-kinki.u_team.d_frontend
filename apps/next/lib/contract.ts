@@ -1,11 +1,3 @@
-// もとは FastAPI の OpenAPI から `bun run generate:schema` で生成していたが、
-// そのバックエンドは廃止済み（API は apps/next に移行）。生成スクリプトも削除したので
-// 以降は手動保守する。
-//
-// API 契約の正はこのファイルと apps/next/lib/contract.ts（同内容のコピー）。
-// エンドポイントを変更したら両方を更新すること。
-// Phase 2 でワークスペース化する際に共有パッケージへ統合する。
-
 import { z } from "zod";
 
 export const BookCreateSchema = z.object({

@@ -30,7 +30,7 @@ export function ProgressTree() {
 			try {
 				const bookId = 5; // ここは適切な本のIDに置き換える必要があります
 				const response = await fetch(
-					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/${bookId}/tree/`,
+					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/${bookId}/tree`,
 					{
 						method: "GET",
 					},

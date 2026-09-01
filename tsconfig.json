@@ -3,5 +3,9 @@
   "compilerOptions": {
     "strict": true
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  // apps/next は独立した Next.js プロジェクトで、自前の tsconfig と node_modules を持つ。
+  // 除外しないと include の **/*.ts が拾い、next/pg/drizzle-orm の型が無くて壊れる。
+  // NOTE: exclude は継承値を「置換」するので tsconfig.base.json 由来の "_" を引き継ぐこと。
+  "exclude": ["_", "apps"]
 }

@@ -22,7 +22,7 @@ export default function RegisterScreen() {
 		setIsSubmitting(true);
 		try {
 			// 1. バックエンドの登録APIを叩く
-			const response = await fetch(`${BACKEND_URL}/users/`, {
+			const response = await fetch(`${BACKEND_URL}/users`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ username: trimmedName }),

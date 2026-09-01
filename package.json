@@ -12,8 +12,7 @@
 		"web": "expo start --web",
 		"build:web": "expo export --platform web",
 		"test": "true",
-		"test:web": "true",
-		"generate:schema": "curl -o openapi.json http://localhost:8000/openapi.json && bun x openapi-to-zod-schema ./openapi.json -o ./schemas/openapi.ts"
+		"test:web": "true"
 	},
 	"dependencies": {
 		"@tamagui/config": "^2.7.7",
