@@ -1,8 +1,7 @@
-import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getTreeState } from "@/lib/domain/tree";
 import { bookNotFound, intParam, withErrorHandling } from "@/lib/http";
-import { books } from "@/lib/schema";
 import { toTreeStateResponse } from "@/lib/serialize";
+import { db } from "@/lib/server/db";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +15,7 @@ export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 	const bookId = intParam("book_id", book_id);
 	if (!bookId.ok) return bookId.response;
 
-	const [tree] = await db
-		.select({ treeRatio: books.treeRatio, treeState: books.treeState })
-		.from(books)
-		.where(and(eq(books.bookId, bookId.value), eq(books.userId, userId.value)))
-		.limit(1);
-
+	const tree = await getTreeState(db, userId.value, bookId.value);
 	if (!tree) return bookNotFound();
 
 	return Response.json(toTreeStateResponse(tree));

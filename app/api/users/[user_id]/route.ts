@@ -1,5 +1,4 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getUser, updateUserName } from "@/lib/domain/users";
 import {
 	intParam,
 	jsonBody,
@@ -7,8 +6,8 @@ import {
 	withErrorHandling,
 } from "@/lib/http";
 import { UserNameUpdateBody } from "@/lib/requests";
-import { users } from "@/lib/schema";
 import { toUserResponse } from "@/lib/serialize";
+import { db } from "@/lib/server/db";
 
 export const dynamic = "force-dynamic";
 
@@ -20,16 +19,7 @@ export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 	const userId = intParam("user_id", user_id);
 	if (!userId.ok) return userId.response;
 
-	const [user] = await db
-		.select({
-			userId: users.userId,
-			username: users.username,
-			numberOfBooks: users.numberOfBooks,
-		})
-		.from(users)
-		.where(eq(users.userId, userId.value))
-		.limit(1);
-
+	const user = await getUser(db, userId.value);
 	if (!user) return userNotFound();
 
 	return Response.json(toUserResponse(user));
@@ -41,7 +31,7 @@ export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 // それをそのまま返す。FastAPI は response_model=UserResponse の検証に失敗して
 // ResponseValidationError を投げ、結果 500 になる。
 // ここでも意図的に投げて withErrorHandling に 500 plain text を返させる。
-// (修正は Phase 3)
+// (修正は Phase 2)
 export const PATCH = withErrorHandling(async (request: Request, ctx: Ctx) => {
 	const { user_id } = await ctx.params;
 	const userId = intParam("user_id", user_id);
@@ -50,12 +40,7 @@ export const PATCH = withErrorHandling(async (request: Request, ctx: Ctx) => {
 	const body = await jsonBody(request, UserNameUpdateBody);
 	if (!body.ok) return body.response;
 
-	const [updated] = await db
-		.update(users)
-		.set({ username: body.data.username })
-		.where(eq(users.userId, userId.value))
-		.returning();
-
+	const updated = await updateUserName(db, userId.value, body.data.username);
 	if (!updated) {
 		// 既知バグ #1 をそのまま再現するための意図的な 500。
 		throw new Error(

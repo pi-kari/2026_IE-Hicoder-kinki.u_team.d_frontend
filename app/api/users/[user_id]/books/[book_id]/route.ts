@@ -1,5 +1,4 @@
-import { and, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getBook, updateBook } from "@/lib/domain/books";
 import {
 	bookNotFound,
 	intParam,
@@ -7,8 +6,8 @@ import {
 	withErrorHandling,
 } from "@/lib/http";
 import { BookCreateBody } from "@/lib/requests";
-import { books } from "@/lib/schema";
 import { toBookResponse } from "@/lib/serialize";
+import { db } from "@/lib/server/db";
 
 export const dynamic = "force-dynamic";
 
@@ -22,12 +21,7 @@ export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 	const bookId = intParam("book_id", book_id);
 	if (!bookId.ok) return bookId.response;
 
-	const [book] = await db
-		.select()
-		.from(books)
-		.where(and(eq(books.userId, userId.value), eq(books.bookId, bookId.value)))
-		.limit(1);
-
+	const book = await getBook(db, userId.value, bookId.value);
 	if (!book) return bookNotFound();
 
 	return Response.json(toBookResponse(book));
@@ -45,15 +39,10 @@ export const POST = withErrorHandling(async (request: Request, ctx: Ctx) => {
 	const body = await jsonBody(request, BookCreateBody);
 	if (!body.ok) return body.response;
 
-	const [updated] = await db
-		.update(books)
-		.set({
-			bookTitle: body.data.book_title,
-			bookPages: body.data.book_pages,
-		})
-		.where(and(eq(books.userId, userId.value), eq(books.bookId, bookId.value)))
-		.returning();
-
+	const updated = await updateBook(db, userId.value, bookId.value, {
+		bookTitle: body.data.book_title,
+		bookPages: body.data.book_pages,
+	});
 	if (!updated) return bookNotFound();
 
 	return Response.json(toBookResponse(updated));

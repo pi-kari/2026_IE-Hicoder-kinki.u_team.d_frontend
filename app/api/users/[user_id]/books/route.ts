@@ -1,5 +1,4 @@
-import { eq, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { createBook, listBooks } from "@/lib/domain/books";
 import {
 	intParam,
 	jsonBody,
@@ -7,8 +6,8 @@ import {
 	withErrorHandling,
 } from "@/lib/http";
 import { BookCreateBody } from "@/lib/requests";
-import { books, users } from "@/lib/schema";
 import { toBookResponse } from "@/lib/serialize";
+import { db } from "@/lib/server/db";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +20,7 @@ export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 	const userId = intParam("user_id", user_id);
 	if (!userId.ok) return userId.response;
 
-	const rows = await db
-		.select()
-		.from(books)
-		.where(eq(books.userId, userId.value));
+	const rows = await listBooks(db, userId.value);
 
 	return Response.json(rows.map(toBookResponse));
 });
@@ -38,35 +34,10 @@ export const PUT = withErrorHandling(async (request: Request, ctx: Ctx) => {
 	const body = await jsonBody(request, BookCreateBody);
 	if (!body.ok) return body.response;
 
-	const created = await db.transaction(async (tx) => {
-		const [user] = await tx
-			.select({ userId: users.userId })
-			.from(users)
-			.where(eq(users.userId, userId.value))
-			.limit(1);
-		if (!user) return null;
-
-		// 既知バグ #3 の再現: body.status は意図的に渡さない。
-		// FastAPI 側も渡しておらず、DB 既定値の "積読" が入る。（修正は Phase 3）
-		const [book] = await tx
-			.insert(books)
-			.values({
-				userId: userId.value,
-				bookTitle: body.data.book_title,
-				bookPages: body.data.book_pages,
-			})
-			.returning();
-
-		// FastAPI は db_user.number_of_books += 1 と read-modify-write していたが、
-		// 同時実行で取りこぼすので SQL 側の加算にする（観測可能な挙動は同じ）。
-		await tx
-			.update(users)
-			.set({ numberOfBooks: sql`${users.numberOfBooks} + 1` })
-			.where(eq(users.userId, userId.value));
-
-		return book;
+	const created = await createBook(db, userId.value, {
+		bookTitle: body.data.book_title,
+		bookPages: body.data.book_pages,
 	});
-
 	if (!created) return userNotFound();
 
 	return Response.json(toBookResponse(created));

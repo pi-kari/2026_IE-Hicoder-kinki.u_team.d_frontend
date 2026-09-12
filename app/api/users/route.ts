@@ -1,8 +1,8 @@
-import { db } from "@/lib/db";
+import { createUser } from "@/lib/domain/users";
 import { jsonBody, withErrorHandling } from "@/lib/http";
 import { UserCreateBody } from "@/lib/requests";
-import { users } from "@/lib/schema";
 import { toUserResponse } from "@/lib/serialize";
+import { db } from "@/lib/server/db";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +15,10 @@ export const PUT = withErrorHandling(async (request: Request) => {
 	const body = await jsonBody(request, UserCreateBody);
 	if (!body.ok) return body.response;
 
-	const [created] = await db
-		.insert(users)
-		.values({
-			username: body.data.username,
-			userMailAddress: body.data.user_mail_address ?? null,
-		})
-		.returning();
+	const created = await createUser(db, {
+		username: body.data.username,
+		userMailAddress: body.data.user_mail_address ?? null,
+	});
 
 	return Response.json(toUserResponse(created));
 });

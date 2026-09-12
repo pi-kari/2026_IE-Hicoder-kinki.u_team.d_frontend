@@ -1,14 +1,13 @@
-import { and, eq, gte, lt, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getProgressOnDay } from "@/lib/domain/progress";
 import {
 	bookNotFound,
 	intParam,
 	unprocessable,
 	withErrorHandling,
 } from "@/lib/http";
-import { jstDayRange, parseIsoDate } from "@/lib/jst";
-import { books, progress } from "@/lib/schema";
+import { parseIsoDate } from "@/lib/jst";
 import { toTodayProgressResponse } from "@/lib/serialize";
+import { db } from "@/lib/server/db";
 
 export const dynamic = "force-dynamic";
 
@@ -38,26 +37,8 @@ export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 		]);
 	}
 
-	const [book] = await db
-		.select({ bookId: books.bookId })
-		.from(books)
-		.where(and(eq(books.userId, userId.value), eq(books.bookId, bookId.value)))
-		.limit(1);
-	if (!book) return bookNotFound();
-
-	const { start, end } = jstDayRange(day);
-
-	const [{ total }] = await db
-		.select({ total: sql<number>`coalesce(sum(${progress.progress}), 0)::int` })
-		.from(progress)
-		.where(
-			and(
-				eq(progress.bookId, bookId.value),
-				eq(progress.userId, userId.value),
-				gte(progress.createdAt, start),
-				lt(progress.createdAt, end),
-			),
-		);
+	const total = await getProgressOnDay(db, userId.value, bookId.value, day);
+	if (total === null) return bookNotFound();
 
 	return Response.json(toTodayProgressResponse(total));
 });
