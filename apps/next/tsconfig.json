@@ -20,7 +20,12 @@
 			}
 		],
 		"paths": {
-			"@/*": ["./*"]
+			"@/*": ["./*"],
+			// Expo 側は tsconfig.base.json の baseUrl 頼みでベア import していた。
+			// Next は baseUrl のルート解決をしないので明示的に張る。
+			"components/*": ["./components/*"],
+			"context/*": ["./context/*"],
+			"schemas/*": ["./schemas/*"]
 		}
 	},
 	"include": [
