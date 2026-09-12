@@ -11,6 +11,10 @@ node_modules
 .tamagui
 app/**/_*.css
 
+# PGlite の ESM 実体。node_modules からの生成物なので追跡しない。
+# scripts/copy-pglite.sh が dev/build の前に毎回コピーする。
+public/pglite
+
 # local env files
 .env
 .env.local
