@@ -71,7 +71,6 @@ async function applyOp(
 			await upsertUser(tx, {
 				userId: op.payload.user_id,
 				username: op.payload.username,
-				userMailAddress: op.payload.user_mail_address,
 				updatedAt: new Date(op.payload.updated_at),
 			});
 			return { ok: true };

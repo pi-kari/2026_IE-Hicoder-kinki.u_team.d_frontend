@@ -54,7 +54,6 @@ async function transfer(from: DomainDb, to: DomainDb, userId: string) {
 		await upsertUser(to, {
 			userId: u.userId,
 			username: u.username,
-			userMailAddress: u.userMailAddress,
 			updatedAt: u.updatedAt,
 		});
 	}
@@ -86,7 +85,6 @@ async function seedUser(db: DomainDb, userId: string, username = "u") {
 	await upsertUser(db, {
 		userId,
 		username,
-		userMailAddress: null,
 		updatedAt: now(),
 	});
 }
@@ -240,14 +238,12 @@ test("可変な行は updated_at が新しい方が勝つ (到着順ではない
 	await upsertUser(server.db, {
 		userId,
 		username: "新しい方",
-		userMailAddress: null,
 		updatedAt: newer,
 	});
 	// 後から届いた古い編集は負ける
 	await upsertUser(server.db, {
 		userId,
 		username: "古い方",
-		userMailAddress: null,
 		updatedAt: older,
 	});
 

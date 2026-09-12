@@ -235,7 +235,6 @@ async function pull(db: DomainDb, userId: string): Promise<void> {
 			await upsertUser(tx, {
 				userId: u.user_id,
 				username: u.username,
-				userMailAddress: u.user_mail_address,
 				updatedAt: new Date(u.updated_at),
 			});
 		}

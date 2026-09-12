@@ -54,7 +54,6 @@ export async function createUser(username: string) {
 		await enqueue(tx, "user.create", userId, {
 			user_id: userId,
 			username,
-			user_mail_address: null,
 			updated_at: at.toISOString(),
 		});
 		return row;

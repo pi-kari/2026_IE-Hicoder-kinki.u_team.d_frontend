@@ -32,7 +32,7 @@ export const GET = withErrorHandling(async (request: Request) => {
 		users: users.map((u) => ({
 			user_id: u.userId,
 			username: u.username,
-			user_mail_address: u.userMailAddress,
+			// user_mail_address は返さない (schemas/sync.ts のコメント参照)
 			updated_at: u.updatedAt.toISOString(),
 		})),
 		books: books.map((b) => ({

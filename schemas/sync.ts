@@ -17,9 +17,13 @@ const IsoDate = z.iso.datetime({ offset: true });
 export const UserRowSchema = z.object({
 	user_id: z.uuid(),
 	username: z.string(),
-	user_mail_address: z.string().nullable(),
 	updated_at: IsoDate,
 	// number_of_books は books_list からの派生値なので運ばない。受け側で数え直す。
+	//
+	// user_mail_address も運ばない。同期には不要な個人情報で、UI からは一度も
+	// 設定されない。これを載せると pull は「user_id さえ分かれば誰でも叩ける
+	// メールアドレス取得 API」になってしまう (このアプリに認証は無く、
+	// user_id は端末間の引き継ぎのために画面に表示される値)。
 });
 
 export const BookRowSchema = z.object({

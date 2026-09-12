@@ -21,8 +21,10 @@ import { recomputeBook } from "./tree";
 export type UserInput = {
 	userId: string;
 	username: string;
-	userMailAddress: string | null;
 	updatedAt: Date;
+	// user_mail_address は同期しない。同期に不要な個人情報で、
+	// pull で返すと「user_id さえ分かれば誰でも取れるメールアドレス」になる。
+	// 既存の行の値はこの経路では触らない。
 };
 
 export type BookInput = {
@@ -55,14 +57,13 @@ export async function upsertUser(db: DomainDb, input: UserInput) {
 		.values({
 			userId: input.userId,
 			username: input.username,
-			userMailAddress: input.userMailAddress,
+			userMailAddress: null,
 			updatedAt: input.updatedAt,
 		})
 		.onConflictDoUpdate({
 			target: users.userId,
 			set: {
 				username: sql`excluded.username`,
-				userMailAddress: sql`excluded.user_mail_address`,
 				updatedAt: sql`excluded.updated_at`,
 			},
 			setWhere: sql`excluded.updated_at > ${users.updatedAt}`,
