@@ -67,6 +67,58 @@ export const books = pgTable(
 	],
 );
 
+// ────────────────────────────────────────────────────────────────────
+// 以下はサーバ専用。端末内 DB にも同じ DDL が流れるが (マイグレーションを
+// 共有しているため)、ブラウザ側は一切書かない。空のまま置かれる。
+//
+// 認証の考え方:
+//   - 端末が登録時に 256bit の秘密を生成する (オフラインで登録できる必要があるため
+//     サーバ発行にはしない)
+//   - 初回同期でその秘密を提示して user_id を「確保」する。先着が勝つ
+//   - 以後は httpOnly cookie のセッションで認証する。user_id は資格情報ではない
+//   - 2 台目は 1 台目が発行する短命の引き継ぎコードで合流する
+// ────────────────────────────────────────────────────────────────────
+
+/** アカウントの秘密。先に確保した端末が所有者になる。 */
+export const userCredentials = pgTable("user_credentials", {
+	userId: uuid("user_id").primaryKey(),
+	// 秘密は 256bit の乱数なので、パスワードと違って総当たりの心配がない。
+	// そのため遅いハッシュ (bcrypt 等) は不要で SHA-256 で十分。
+	secretHash: varchar("secret_hash").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true })
+		.notNull()
+		.defaultNow(),
+});
+
+/** 端末ごとのセッション。cookie にはこのトークンを入れる。
+ *  行を消せばその端末だけログアウトさせられる。 */
+export const userSessions = pgTable(
+	"user_sessions",
+	{
+		tokenHash: varchar("token_hash").primaryKey(),
+		userId: uuid("user_id").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(t) => [index("ix_user_sessions_user_id").on(t.userId)],
+);
+
+/** 2 台目を合流させるための短命コード。1 回使ったら無効。 */
+export const transferCodes = pgTable(
+	"transfer_codes",
+	{
+		codeHash: varchar("code_hash").primaryKey(),
+		userId: uuid("user_id").notNull(),
+		expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+		usedAt: timestamp("used_at", { withTimezone: true }),
+	},
+	(t) => [index("ix_transfer_codes_user_id").on(t.userId)],
+);
+
 export const progress = pgTable(
 	"progress",
 	{

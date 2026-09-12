@@ -1,5 +1,6 @@
 import { applyProgress, upsertBook, upsertUser } from "@/lib/domain/sync";
 import { jsonBody, withErrorHandling } from "@/lib/http";
+import { requireSession } from "@/lib/server/auth";
 import { db } from "@/lib/server/db";
 import {
 	type SyncOp,
@@ -23,6 +24,9 @@ export const dynamic = "force-dynamic";
  * 端末はどれが失敗したか分からないまま同じバッチを永久に再送し続ける。
  */
 export const POST = withErrorHandling(async (request: Request) => {
+	const session = await requireSession(request);
+	if (!session.ok) return session.response;
+
 	const body = await jsonBody(request, SyncPushBodySchema);
 	if (!body.ok) return body.response;
 
@@ -30,6 +34,16 @@ export const POST = withErrorHandling(async (request: Request) => {
 
 	await db.transaction(async (tx) => {
 		for (const op of body.data.ops) {
+			// 他人の行を書こうとする op は握りつぶさず rejected にする。
+			// 端末側は dead letter にして先へ進む。
+			if (opUserId(op) !== session.userId) {
+				results.push({
+					id: op.id,
+					status: "rejected",
+					error: "Forbidden",
+				});
+				continue;
+			}
 			try {
 				// ネストした transaction は SAVEPOINT になる (実測で確認済み)。
 				// 中が失敗しても外側のトランザクションは生き残る。
@@ -59,6 +73,11 @@ export const POST = withErrorHandling(async (request: Request) => {
 });
 
 class RejectedOp extends Error {}
+
+/** その op が触ろうとしているユーザー。 */
+function opUserId(op: SyncOp): string {
+	return op.op === "user.create" ? op.payload.user_id : op.payload.user_id;
+}
 
 type Outcome = { ok: true } | { ok: false; reason: string };
 

@@ -20,6 +20,8 @@ set -uo pipefail
 
 BASE="${BASE:-http://localhost:3000/api}"
 OUT="$(mktemp -d)"
+# セッション cookie を持ち回す。/api/users/:uid/** は認証が要る。
+JAR="$OUT/cookies.txt"
 TODAY_JST="$(TZ=Asia/Tokyo date +%F)"
 FAIL=0
 
@@ -30,7 +32,7 @@ uuid() { uuidgen | tr 'A-Z' 'a-z'; }
 # 直近のレスポンスは $OUT/last.json に残るので、後続の expect_* で中身を見る。
 req() {
 	local label="$1" method="$2" path="$3" want="$4" body="${5:-}"
-	local args=(-sS -X "$method" -o "$OUT/last.body" -w '%{http_code}')
+	local args=(-sS -X "$method" -o "$OUT/last.body" -w '%{http_code}' -b "$JAR" -c "$JAR")
 	[ -n "$body" ] && args+=(-H 'Content-Type: application/json' -d "$body")
 
 	local code
@@ -66,6 +68,12 @@ expect() {
 echo "BASE=$BASE"
 echo
 
+echo "== 認証 (未ログインでは触れない) =="
+req unauth-books     GET  "/users/$(uuid)/books" 401
+req unauth-pull      GET  /sync/pull 401
+req unauth-push      POST /sync/push 401 '{"ops":[]}'
+echo
+
 echo "== health / users =="
 req health           GET  /health 200
 
@@ -75,16 +83,21 @@ req create-user      PUT  /users 200 \
 expect create-user '.user_id' "\"$USER_ID\""
 expect create-user '.number_of_books' '0'
 
+# ここから先は認証が要る。端末がやるのと同じく秘密を提示して確保する。
+# user_id は資格情報ではないので、これを知っているだけでは何もできない。
+SECRET="$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=')"
+req claim            POST /auth/claim 200 \
+	"{\"user_id\":\"$USER_ID\",\"secret\":\"$SECRET\"}"
+
 req get-user         GET  "/users/$USER_ID" 200
-req get-user-404     GET  "/users/$(uuid)" 404
-expect get-user-404 '.detail' '"User not found"'
+# 他人の user_id は 404 ではなく 403 (存在の有無すら漏らさない)
+req get-user-other   GET  "/users/$(uuid)" 403
 
 req patch-user       PATCH "/users/$USER_ID" 200 '{"username":"spec_taro_2"}'
 expect patch-user '.username' '"spec_taro_2"'
 
-# 既知バグ #1 修正済み: 以前は 500 (plain text) だった
-req patch-missing    PATCH "/users/$(uuid)" 404 '{"username":"x"}'
-expect patch-missing '.detail' '"User not found"'
+# 他人への PATCH は 403
+req patch-other      PATCH "/users/$(uuid)" 403 '{"username":"x"}'
 
 # username の unique 索引を落としたので、同名でも作れる (以前は 500)
 req dup-username     PUT  /users 200 \
@@ -104,12 +117,11 @@ expect create-book-a '[.total_progress,.tree_ratio,.tree_state]' '[0,0,1]'
 req create-book-b    PUT  "/users/$USER_ID/books" 200 \
 	"{\"book_id\":\"$BB\",\"book_title\":\"本B\",\"status\":\"積読\",\"book_pages\":0}"
 
-req create-book-404  PUT  "/users/$(uuid)/books" 404 \
+req create-book-403  PUT  "/users/$(uuid)/books" 403 \
 	"{\"book_id\":\"$(uuid)\",\"book_title\":\"x\",\"status\":\"積読\",\"book_pages\":1}"
 req list-books       GET  "/users/$USER_ID/books" 200
 expect list-books 'length' '2'
-req list-books-empty GET  "/users/$(uuid)/books" 200
-expect list-books-empty '.' '[]'
+req list-books-other GET  "/users/$(uuid)/books" 403
 req get-book         GET  "/users/$USER_ID/books/$BA" 200
 req get-book-404     GET  "/users/$USER_ID/books/$(uuid)" 404
 expect get-book-404 '.detail' '"Book not found"'

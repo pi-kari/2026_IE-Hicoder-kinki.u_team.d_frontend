@@ -13,22 +13,24 @@ import { expect, test } from "@playwright/test";
 
 type Page = import("@playwright/test").Page;
 
-async function register(page: Page, name: string): Promise<string> {
+async function register(page: Page, name: string) {
 	await page.goto("/register");
 	await page.getByPlaceholder("ユーザー名").fill(name);
 	const submit = page.getByRole("button", { name: "登録して始める" });
 	await expect(submit).toBeEnabled({ timeout: 30_000 });
 	await submit.click();
 	await page.waitForURL((url) => !url.pathname.endsWith("/register"));
+}
 
-	// 2 台目で使うためにユーザー ID を取る。
-	// セッションの復元は非同期なので、埋まるまで待つ。
+/** 1 台目で引き継ぎコードを発行する。2 台目はこれで合流する。 */
+async function issueTransferCode(page: Page): Promise<string> {
 	await page.goto("/profile");
-	const idText = page.locator("#user-id");
-	await expect(idText).not.toHaveText("—", { timeout: 30_000 });
-	const id = (await idText.textContent())?.trim();
-	if (!id) throw new Error("ユーザー ID を取得できませんでした");
-	return id;
+	await page.getByRole("button", { name: "引き継ぎコードを発行" }).click();
+	const code = page.locator("#transfer-code");
+	await expect(code).toBeVisible({ timeout: 30_000 });
+	const text = (await code.textContent())?.trim();
+	if (!text) throw new Error("引き継ぎコードを取得できませんでした");
+	return text;
 }
 
 async function addBook(page: Page, title: string, pages: string) {
@@ -71,7 +73,7 @@ test("オフラインで記録したものがオンライン復帰後にサー�
 	const context = await browser.newContext();
 	const page = await context.newPage();
 
-	const userId = await register(page, `sync-${Date.now()}`);
+	await register(page, `sync-${Date.now()}`);
 	await addBook(page, "同期する本", "100");
 	await synced(page);
 
@@ -84,10 +86,9 @@ test("オフラインで記録したものがオンライン復帰後にサー�
 	await context.setOffline(false);
 	await synced(page);
 
-	// サーバ側に実在することを Node から直接確かめる
-	const res = await page.request.get(
-		`/api/sync/pull?user_id=${encodeURIComponent(userId)}`,
-	);
+	// サーバ側に実在することを確かめる。
+	// pull は user_id を取らず、セッションの持ち主のぶんだけを返す。
+	const res = await page.request.get("/api/sync/pull");
 	expect(res.ok()).toBe(true);
 	const data = await res.json();
 	expect(data.books).toHaveLength(1);
@@ -107,18 +108,19 @@ test("2 台の端末で別々にオフライン記録すると、両方に両方
 	const first = await browser.newContext();
 	const pageA = await first.newPage();
 
-	const userId = await register(pageA, `two-${Date.now()}`);
+	await register(pageA, `two-${Date.now()}`);
 	await addBook(pageA, "共有する本", "100");
 	await synced(pageA);
 
-	// 2 台目はユーザー ID を入れて合流する (このアプリにログインは無い)
+	// 2 台目は 1 台目が発行した引き継ぎコードで合流する。
+	// user_id を入力させる方式はやめた (ID が実質の資格情報になってしまうため)。
+	const code = await issueTransferCode(pageA);
+
 	const second = await browser.newContext();
 	const pageB = await second.newPage();
 	await pageB.goto("/register");
-	await pageB.getByPlaceholder("既存のユーザー ID").fill(userId);
-	const join = pageB.getByRole("button", {
-		name: "既存のユーザー ID で続ける",
-	});
+	await pageB.getByPlaceholder("引き継ぎコード").fill(code);
+	const join = pageB.getByRole("button", { name: "引き継ぎコードで続ける" });
 	await expect(join).toBeEnabled({ timeout: 30_000 });
 	await join.click();
 

@@ -1,5 +1,6 @@
 import { dumpUser } from "@/lib/domain/sync";
-import { uuidParam, withErrorHandling } from "@/lib/http";
+import { withErrorHandling } from "@/lib/http";
+import { requireSession } from "@/lib/server/auth";
 import { db } from "@/lib/server/db";
 
 export const dynamic = "force-dynamic";
@@ -20,13 +21,15 @@ export const dynamic = "force-dynamic";
  * GET /api/users/:uid/books は流用できない。toBookResponse の 7 フィールドしか
  * 返さず、user_id も updated_at も progress 行も無いので、履歴の復元も
  * 派生カラムの再計算もできない。
+ *
+ * **対象はセッションの持ち主で、クエリパラメータは受け取らない。**
+ * user_id を引数に取ると「ID を知っていれば誰の履歴でも読める」API になる。
  */
 export const GET = withErrorHandling(async (request: Request) => {
-	const raw = new URL(request.url).searchParams.get("user_id") ?? "";
-	const userId = uuidParam("user_id", raw);
-	if (!userId.ok) return userId.response;
+	const session = await requireSession(request);
+	if (!session.ok) return session.response;
 
-	const { users, books, progress } = await dumpUser(db, userId.value);
+	const { users, books, progress } = await dumpUser(db, session.userId);
 
 	return Response.json({
 		users: users.map((u) => ({

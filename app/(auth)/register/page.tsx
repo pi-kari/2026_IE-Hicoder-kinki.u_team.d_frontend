@@ -3,8 +3,7 @@
 import { useAuth } from "context/AuthContext";
 import { useLocalDb } from "context/LocalDbContext";
 import { createUser } from "lib/local/repo";
-import { joinUser } from "lib/local/sync";
-import { isUuid } from "lib/uuid";
+import { joinWithTransferCode } from "lib/local/sync";
 import { useState } from "react";
 import { Button, H2, Input, Paragraph, Separator, YStack } from "tamagui";
 
@@ -12,7 +11,7 @@ export default function RegisterPage() {
 	const { registerSession } = useAuth();
 	const { ready } = useLocalDb();
 	const [username, setUsername] = useState("");
-	const [existingId, setExistingId] = useState("");
+	const [transferCode, setTransferCode] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -53,29 +52,31 @@ export default function RegisterPage() {
 	 *
 	 * このアプリにログインは無く、/register は常に新規ユーザーを作る。
 	 * それだけだと「別の端末で同じユーザーを続ける」手段が無く、
-	 * サーバ同期を入れても意味が無い。ユーザー ID の直接入力で合流させる。
-	 * ID はプロフィール画面に表示している。
+	 * サーバ同期を入れても意味が無い。
 	 *
-	 * この端末のローカル DB はまだ空なので、まずサーバから取り寄せる。
+	 * 1 台目のプロフィール画面で発行する**引き継ぎコード**を使う。
+	 * ユーザー ID を入力させる方式にはしない。それだと ID が実質の資格情報に
+	 * なり、画面に表示している値で他人のデータが読めてしまう。
+	 *
+	 * 合流だけはオフラインではできない (サーバがセッションを張るため)。
 	 */
 	const handleContinue = async () => {
-		const id = existingId.trim();
-		if (!isUuid(id)) {
-			setErrorMessage("ユーザー ID の形式が正しくありません");
+		const code = transferCode.trim();
+		if (code.length < 4) {
+			setErrorMessage("引き継ぎコードを入力してください");
 			return;
 		}
 
 		setErrorMessage(null);
 		setIsSubmitting(true);
 		try {
-			const found = await joinUser(id);
-			if (!found) {
-				setErrorMessage("そのユーザー ID は見つかりませんでした");
+			const joinedUserId = await joinWithTransferCode(code);
+			if (!joinedUserId) {
+				setErrorMessage("コードが正しくないか、有効期限が切れています");
 				return;
 			}
-			await registerSession(id);
+			await registerSession(joinedUserId);
 		} catch (error) {
-			// サーバに繋がらないと取り寄せられない。合流だけはオフラインでできない。
 			console.error(error);
 			setErrorMessage("サーバに接続できませんでした");
 		} finally {
@@ -125,17 +126,17 @@ export default function RegisterPage() {
 			<Separator width="100%" maxW={320} my="$2" />
 
 			<Paragraph size="$2" text="center" maxW={320}>
-				別の端末で使っていた場合は、プロフィール画面に表示されるユーザー ID
-				を入力すると続きから使えます。
+				別の端末で使っていた場合は、その端末のプロフィール画面で発行した
+				引き継ぎコードを入力すると続きから使えます。
 			</Paragraph>
 
 			<Input
 				width="100%"
 				maxW={320}
-				placeholder="既存のユーザー ID"
-				value={existingId}
-				onChangeText={setExistingId}
-				autoCapitalize="none"
+				placeholder="引き継ぎコード"
+				value={transferCode}
+				onChangeText={(t: string) => setTransferCode(t.toUpperCase())}
+				autoCapitalize="characters"
 				onSubmitEditing={handleContinue}
 			/>
 
@@ -146,7 +147,7 @@ export default function RegisterPage() {
 				opacity={busy ? 0.6 : 1}
 				onPress={handleContinue}
 			>
-				既存のユーザー ID で続ける
+				引き継ぎコードで続ける
 			</Button>
 		</YStack>
 	);

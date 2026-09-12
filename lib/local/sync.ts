@@ -1,6 +1,5 @@
 "use client";
 
-import { sql } from "drizzle-orm";
 import {
 	type SyncOp,
 	SyncPullResponseSchema,
@@ -23,6 +22,7 @@ import {
 	pendingEntityIds,
 	remove,
 } from "./outbox";
+import { deviceSecret, isJoinedDevice, markJoinedDevice } from "./secret";
 
 /**
  * サーバとの同期。
@@ -33,15 +33,6 @@ import {
  * 3 テーブル・数百行・1 端末 1 ユーザーには重すぎる。
  */
 
-/** `DomainDb` は総称型なので `execute()` の戻りが unknown になる。 */
-async function rows<T>(
-	db: DomainDb,
-	query: Parameters<DomainDb["execute"]>[0],
-) {
-	const res = (await db.execute(query)) as { rows?: T[] } | T[];
-	return (Array.isArray(res) ? res : (res.rows ?? [])) as T[];
-}
-
 export type SyncState = {
 	/** 未送信の件数 */
 	pending: number;
@@ -51,6 +42,8 @@ export type SyncState = {
 	lastSyncedAt: Date | null;
 	/** 同期中かどうか */
 	running: boolean;
+	/** セッションを張れない (引き継ぎコードの再発行が要る) */
+	authRequired: boolean;
 };
 
 type Listener = (state: SyncState) => void;
@@ -60,6 +53,7 @@ let state: SyncState = {
 	failed: 0,
 	lastSyncedAt: null,
 	running: false,
+	authRequired: false,
 };
 const listeners = new Set<Listener>();
 
@@ -117,12 +111,47 @@ export function sync(userId: string): Promise<void> {
 	return inFlight;
 }
 
+/**
+ * 同期の前にセッションを確保する。
+ *
+ * 登録はオフラインでもできるので、初めてオンラインになった時点では
+ * サーバにこの user_id の所有者が登録されていない。端末内の秘密を提示して
+ * 確保する (先着が所有者)。以後は httpOnly cookie のセッションで認証する。
+ *
+ * 引き継ぎコードで合流した 2 台目は秘密を持っていないので確保しない。
+ * cookie が切れた場合は、1 台目でコードを発行し直してもらう。
+ *
+ * @returns 認証済みになったか
+ */
+async function ensureSession(db: DomainDb, userId: string): Promise<boolean> {
+	const res = await fetch("/api/auth/session");
+	if (res.ok) {
+		const { user_id } = (await res.json()) as { user_id: string | null };
+		if (user_id === userId) return true;
+		// 別のユーザーのセッションが残っている場合は張り直す
+	}
+
+	if (await isJoinedDevice(db)) return false;
+
+	const claim = await fetch("/api/auth/claim", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ user_id: userId, secret: await deviceSecret(db) }),
+	});
+	return claim.ok;
+}
+
 async function runSync(userId: string): Promise<void> {
 	if (typeof navigator !== "undefined" && navigator.onLine === false) return;
 
 	publish({ running: true });
 	try {
 		const { db } = await getLocalDb();
+		if (!(await ensureSession(db, userId))) {
+			publish({ authRequired: true });
+			return;
+		}
+		publish({ authRequired: false });
 		const pushed = await push(db);
 		if (pushed) {
 			await pull(db, userId);
@@ -144,24 +173,36 @@ async function runSync(userId: string): Promise<void> {
 }
 
 /**
- * 既存のユーザー ID でこの端末を合流させる。
+ * 引き継ぎコードでこの端末を合流させる。
  *
  * このアプリにログインは無く /register は常に新規ユーザーを作るので、
- * 2 台目の端末はここを通る。ローカル DB はまだ空なので、
- * **サーバから取り寄せてから**紐付けの可否を判断する。
+ * 2 台目の端末はここを通る。コードを使うとサーバがセッション cookie を
+ * 張ってくれるので、あとは pull してローカル DB を埋める。
  *
- * @returns そのユーザーが存在したか
+ * **user_id を入力させる方式はやめた。** それだと user_id が実質の
+ * 資格情報になり、引き継ぎのために画面に出す値で他人のデータが読めてしまう。
+ *
+ * @returns 合流できたユーザーの id。コードが無効なら null
  */
-export async function joinUser(userId: string): Promise<boolean> {
+export async function joinWithTransferCode(
+	code: string,
+): Promise<string | null> {
+	const res = await fetch("/api/auth/redeem", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ code }),
+	});
+	if (!res.ok) return null;
+
+	const { user_id } = (await res.json()) as { user_id: string };
+
 	const { db } = await getLocalDb();
-	await pull(db, userId);
+	// この端末はアカウントの秘密を知らない。確保を試みないよう印を付ける。
+	await markJoinedDevice(db);
+	await pull(db, user_id);
 	await flushLocalDb();
 
-	const found = await rows<{ n: number }>(
-		db,
-		sql`select count(*)::int as n from users where user_id = ${userId}`,
-	);
-	return (found[0]?.n ?? 0) > 0;
+	return user_id;
 }
 
 /**
@@ -216,9 +257,8 @@ async function push(db: DomainDb): Promise<boolean> {
  * progress は本を参照するため。
  */
 async function pull(db: DomainDb, userId: string): Promise<void> {
-	const res = await fetch(
-		`/api/sync/pull?user_id=${encodeURIComponent(userId)}`,
-	);
+	// 対象はセッションの持ち主。user_id はクエリで渡さない。
+	const res = await fetch("/api/sync/pull");
 	if (!res.ok) throw new Error(`pull failed: ${res.status}`);
 
 	const data = SyncPullResponseSchema.parse(await res.json());

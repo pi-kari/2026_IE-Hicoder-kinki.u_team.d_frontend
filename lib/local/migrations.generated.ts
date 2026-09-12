@@ -1,5 +1,5 @@
 // scripts/gen-migrations.ts が生成。手で編集しない。
-// 元ファイル: drizzle/0000_equal_thena.sql, lib/local/0000_local.sql
+// 元ファイル: drizzle/0000_equal_thena.sql, drizzle/0001_fantastic_dreaming_celestial.sql, lib/local/0000_local.sql
 export const MIGRATION_SQL: { tag: string; sql: string }[] = [
 	{
 		tag: "0000_equal_thena",
@@ -39,6 +39,31 @@ CREATE INDEX "ix_books_list_book_title" ON "books_list" USING btree ("book_title
 CREATE INDEX "ix_progress_book_id" ON "progress" USING btree ("book_id");--> statement-breakpoint
 CREATE INDEX "ix_progress_user_id" ON "progress" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "ix_users_user_mail_address" ON "users" USING btree ("user_mail_address");`,
+	},
+	{
+		tag: "0001_fantastic_dreaming_celestial",
+		sql: `CREATE TABLE "transfer_codes" (
+	"code_hash" varchar PRIMARY KEY NOT NULL,
+	"user_id" uuid NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"used_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "user_credentials" (
+	"user_id" uuid PRIMARY KEY NOT NULL,
+	"secret_hash" varchar NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "user_sessions" (
+	"token_hash" varchar PRIMARY KEY NOT NULL,
+	"user_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"last_seen_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX "ix_transfer_codes_user_id" ON "transfer_codes" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "ix_user_sessions_user_id" ON "user_sessions" USING btree ("user_id");`,
 	},
 	{
 		tag: "local_0000",
