@@ -140,19 +140,19 @@ export default function BooksListScreen() {
 				<Card.Footer p="$2">
 					<XStack flex={1} />
 
-					<Link
-						href={{
-							pathname: "/books-information",
-							params: {
-								bookId: item.book_id,
-							},
-						}}
-						asChild
-					>
-						<Button size="$2" rounded="$8">
-							詳細
-						</Button>
-					</Link>
+						<Link
+							href={{
+								pathname: "/books-information",
+								params: {
+									bookId: item.book_id,
+								},
+							}}
+							asChild
+						>
+							<Button size="$2" style={{ borderRadius: 8 }}>
+								詳細
+							</Button>
+						</Link>
 				</Card.Footer>
 			</Card>
 		),
