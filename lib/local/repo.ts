@@ -18,17 +18,18 @@ import {
 } from "../serialize";
 import { uuidv7 } from "../uuid";
 import { flushLocalDb, getLocalDb } from "./db";
+import { enqueue } from "./outbox";
+import { refreshSyncState, sync } from "./sync";
 
 /**
- * UI から見た API。lib/api.ts (HTTP) の後継。
+ * UI から見た API。かつての lib/api.ts (HTTP) の後継。
  *
- * 中身は lib/domain/* をローカル DB に対して直接呼ぶだけで、
+ * 中身は lib/domain/* を端末内 DB に対して直接呼ぶだけで、
  * 戻り値は lib/serialize.ts を通すのでサーバの JSON と構造的に同一。
- * だから UI 側の変更は import 先の差し替えで済む。
+ * だから UI 側の変更は import 先の差し替えで済んでいる。
  *
  * HTTP を経由しないので、失敗は Response ではなく例外で来る。
- * 呼び出し側は try/catch すること (以前は res.ok を見ていない箇所があり、
- * 500 のときに JSON パースで unhandled rejection になっていた)。
+ * 呼び出し側は try/catch すること。
  */
 
 /** 書き込み時刻。createdAt / updatedAt は必ず呼び出し側 = ここで決める。
@@ -38,13 +39,32 @@ const now = () => new Date();
 
 export async function createUser(username: string) {
 	const { db } = await getLocalDb();
-	const created = await domainCreateUser(db, {
-		userId: uuidv7(),
-		username,
-		userMailAddress: null,
-		updatedAt: now(),
+	const userId = uuidv7();
+	const at = now();
+
+	const created = await db.transaction(async (tx) => {
+		const row = await domainCreateUser(tx, {
+			userId,
+			username,
+			userMailAddress: null,
+			updatedAt: at,
+		});
+		// 書き込みと同じトランザクションで積む。別にすると
+		// 「ローカルには入ったが送信されない」行が生まれる。
+		await enqueue(tx, "user.create", userId, {
+			user_id: userId,
+			username,
+			user_mail_address: null,
+			updated_at: at.toISOString(),
+		});
+		return row;
 	});
+
 	await flushLocalDb();
+	// **await する。** fire-and-forget にすると、書き込み直後に一瞬
+	// 「同期済み」と表示される窓ができる。ユーザーが送信済みと誤解しうる。
+	await refreshSyncState();
+	void sync(userId);
 	return toUserResponse(created);
 }
 
@@ -67,15 +87,33 @@ export async function createBook(
 	input: { bookTitle: string; status: string; bookPages: number },
 ) {
 	const { db } = await getLocalDb();
-	const created = await domainCreateBook(db, userId, {
-		bookId: uuidv7(),
-		bookTitle: input.bookTitle,
-		status: input.status,
-		bookPages: input.bookPages,
-		updatedAt: now(),
+	const bookId = uuidv7();
+	const at = now();
+
+	const created = await db.transaction(async (tx) => {
+		const row = await domainCreateBook(tx, userId, {
+			bookId,
+			bookTitle: input.bookTitle,
+			status: input.status,
+			bookPages: input.bookPages,
+			updatedAt: at,
+		});
+		if (!row) throw new Error("ユーザーが見つかりません");
+
+		await enqueue(tx, "book.create", bookId, {
+			book_id: bookId,
+			user_id: userId,
+			book_title: input.bookTitle,
+			status: input.status,
+			book_pages: input.bookPages,
+			updated_at: at.toISOString(),
+		});
+		return row;
 	});
-	if (!created) throw new Error("ユーザーが見つかりません");
+
 	await flushLocalDb();
+	await refreshSyncState();
+	void sync(userId);
 	return toBookResponse(created);
 }
 
@@ -85,13 +123,30 @@ export async function recordProgress(
 	pagesRead: number,
 ) {
 	const { db } = await getLocalDb();
-	const updated = await domainRecordProgress(db, userId, bookId, {
-		progressId: uuidv7(),
-		pagesRead,
-		createdAt: now(),
+	const progressId = uuidv7();
+	const at = now();
+
+	const updated = await db.transaction(async (tx) => {
+		const row = await domainRecordProgress(tx, userId, bookId, {
+			progressId,
+			pagesRead,
+			createdAt: at,
+		});
+		if (!row) throw new Error("本が見つかりません");
+
+		await enqueue(tx, "progress.record", progressId, {
+			progress_id: progressId,
+			book_id: bookId,
+			user_id: userId,
+			progress: pagesRead,
+			created_at: at.toISOString(),
+		});
+		return row;
 	});
-	if (!updated) throw new Error("本が見つかりません");
+
 	await flushLocalDb();
+	await refreshSyncState();
+	void sync(userId);
 	return toProgressUpdateResponse(updated);
 }
 

@@ -2,7 +2,8 @@
 
 import { useAuth } from "context/AuthContext";
 import { useLocalDb } from "context/LocalDbContext";
-import { createUser, findUser } from "lib/local/repo";
+import { createUser } from "lib/local/repo";
+import { joinUser } from "lib/local/sync";
 import { isUuid } from "lib/uuid";
 import { useState } from "react";
 import { Button, H2, Input, Paragraph, Separator, YStack } from "tamagui";
@@ -54,6 +55,8 @@ export default function RegisterPage() {
 	 * それだけだと「別の端末で同じユーザーを続ける」手段が無く、
 	 * サーバ同期を入れても意味が無い。ユーザー ID の直接入力で合流させる。
 	 * ID はプロフィール画面に表示している。
+	 *
+	 * この端末のローカル DB はまだ空なので、まずサーバから取り寄せる。
 	 */
 	const handleContinue = async () => {
 		const id = existingId.trim();
@@ -65,19 +68,16 @@ export default function RegisterPage() {
 		setErrorMessage(null);
 		setIsSubmitting(true);
 		try {
-			// 端末内 DB に無ければ、この端末にはまだそのユーザーのデータが無い。
-			// 同期を入れるまではサーバから取り寄せられないので、その旨を出す。
-			const user = await findUser(id);
-			if (!user) {
-				setErrorMessage(
-					"この端末にそのユーザーのデータがありません（サーバからの取得は未対応）",
-				);
+			const found = await joinUser(id);
+			if (!found) {
+				setErrorMessage("そのユーザー ID は見つかりませんでした");
 				return;
 			}
-			await registerSession(user.user_id);
+			await registerSession(id);
 		} catch (error) {
+			// サーバに繋がらないと取り寄せられない。合流だけはオフラインでできない。
 			console.error(error);
-			setErrorMessage("読み込みに失敗しました");
+			setErrorMessage("サーバに接続できませんでした");
 		} finally {
 			setIsSubmitting(false);
 		}

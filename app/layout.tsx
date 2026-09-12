@@ -2,6 +2,7 @@ import "./globals.css";
 import "./tamagui.generated.css";
 
 import { ServiceWorkerRegistration } from "components/ServiceWorkerRegistration";
+import { SyncStatus } from "components/SyncStatus";
 import { AuthProvider } from "context/AuthContext";
 import { LocalDbProvider } from "context/LocalDbContext";
 import type { Metadata, Viewport } from "next";
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 					{/* 端末内 DB は認証より外側。DB が開けなければセッションも扱えない */}
 					<LocalDbProvider>
 						<AuthProvider>
+							<SyncStatus />
 							<AuthGuard>{children}</AuthGuard>
 						</AuthProvider>
 					</LocalDbProvider>

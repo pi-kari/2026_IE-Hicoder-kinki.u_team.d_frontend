@@ -33,6 +33,9 @@ bun run dev                  # http://localhost:3000
 | `components/TabBar.tsx` | 下部タブバー。expo-router の `<Tabs>` の置き換え |
 | `components/PageHeader.tsx` | タイトル + 戻るボタン。ネストした `<Stack>` の置き換え |
 | `lib/local/repo.ts` | **UI から見た API**。端末内 DB に対して `lib/domain/**` を直接呼ぶ |
+| `lib/local/sync.ts` | サーバ同期。送信 → 取得 → 再計算 |
+| `lib/local/outbox.ts` | 未送信キュー。書き込みと同じトランザクションで積む |
+| `lib/domain/sync.ts` | 同期の適用 (upsert)。対話 API とは意味論が違うので分けてある |
 | `lib/local/db.ts` | 端末内 PostgreSQL (PGlite)。タブ排他・スキーマ世代・書き込みの押し出し |
 | `lib/domain/**` | **業務ロジック**。DB ハンドルを引数に取る純関数。サーバでもブラウザでも動く |
 | `lib/schema.ts` | Drizzle スキーマ (`users` / `books_list` / `progress`)。主キーは uuid |
@@ -112,6 +115,42 @@ SQLite ではなく PGlite を選んだ理由。
   木の画像も `next/image` の最適化を通すと `/_next/image?url=` になるので
   `unoptimized` にしている。
 
+### サーバ同期
+
+端末内 DB が作業用の正で、サーバは同期先兼バックアップ。
+`lib/local/sync.ts` が送信 → 取得 → 再計算を 1 往復ぶん行う。
+
+- **送信**: 書き込みと**同じトランザクション**で `outbox` に積む。
+  `id` は uuidv7 なので **id 昇順 = 因果順**になり、そのまま送信順に使える
+  （`book.create` が必ずその本の `progress.record` より先に届く）。
+  一時的な失敗が出たらそこで止めて順序を守り、二度と成功しないものは
+  dead letter にして先へ進む。
+- **取得**: `GET /api/sync/pull?user_id=` が**そのユーザーの全行**を返す。
+  差分は取らない — `created_at` / `updated_at` は端末が生成した値なので
+  透かしに使えない（端末 A が火曜にオフラインで記録して木曜に送ると、
+  「木曜より新しい行」で絞った瞬間その行は永久に届かない）。
+  行数は 1 ユーザーぶんの数十行で、`progress` は id 一致で無視、
+  `users`/`books` は `updated_at` の新しい方を採るので**全件でも冪等**。
+- **競合**: `progress` は追記のみなので原理的に競合しない。2 端末の記録は
+  自然に合算される。可変なのは `users.username` と `books_list` の行だけで、
+  **端末が押した `updated_at`** の新しい方が勝つ（サーバが `now()` を打つと
+  編集順ではなく到着順で勝者が決まってしまう）。
+- **派生カラムは運ばない**。`total_progress` / `tree_ratio` / `tree_state` /
+  `number_of_books` は受け側で数え直す。普通のカラムとして同期すると
+  2 端末でオフライン記録したとき片方が消える。
+
+`POST /api/sync/push` は **op ごとに SAVEPOINT** を張る。平坦な 1 トランザクション
+だと 1 件の失敗がバッチ全体を巻き戻し、`withErrorHandling` がプレーンテキストの
+500 を返すので、端末はどれが失敗したか分からないまま同じバッチを永久に再送する。
+
+ElectricSQL は使っていない。読み取り同期しか提供せず、書き出しも競合解決も
+結局自前になるうえ、同期サービスのコンテナと論理レプリケーションが要る。
+3 テーブル・数百行・1 端末 1 ユーザーには重すぎる。
+
+> **同期中に来た書き込みは捨てずにキューする。** 走行中の要求を現在の実行に
+> 相乗りさせるだけだと、同期の最中に書いた行が取り残されて次の契機
+> （30 秒間隔）まで送られない。
+
 ### 別の端末で続きを使う
 
 このアプリにログインは無く、`/register` は常に新規ユーザーを作る。
@@ -159,6 +198,7 @@ SQLite ではなく PGlite を選んだ理由。
 |---|---|
 | `bun run test:unit` | `lib/domain/**` をインメモリ PGlite に対して検証。**Docker 不要**、数秒 |
 | `bun run api-spec` | HTTP 層（ステータス / 404・422 のボディ形 / シリアライズ）。空の DB を向けて実行 |
+| — | 同期は `lib/domain/sync.test.ts`（2 つの PGlite を端末とサーバに見立てて行を往復させる）と `tests/sync.test.ts`（2 つの browser context を 2 台の端末に見立てる）で見る |
 | `bun run test` | Playwright。`build && start` してからブラウザで叩く。オフライン動作もここで見る |
 
 `playwright.config.ts` は `reuseExistingServer: true` なので、**手で起動した
