@@ -12,6 +12,12 @@ const nextConfig: NextConfig = {
 		// (next/dist/server/config-shared.d.ts の `turbopack?: TurbopackOptions`)。
 		resolveAlias: {
 			"react-native-svg": "@tamagui/react-native-svg",
+
+			// PGlite の実体は public/pglite/ から素の ESM として読む
+			// (Turbopack はこのパッケージをバンドルすると本番ビルドで壊す)。
+			// drizzle-orm/pglite が @electric-sql/pglite を import しているので、
+			// 何もしないと壊れる方がバンドルに戻ってくる。必要なのは OID 定数だけ。
+			"@electric-sql/pglite": "./lib/local/pglite-stub.ts",
 		},
 	},
 

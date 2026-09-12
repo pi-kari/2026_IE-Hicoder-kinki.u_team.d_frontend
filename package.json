@@ -3,8 +3,9 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"dev": "./scripts/copy-pglite.sh && next dev",
-		"build": "./scripts/copy-pglite.sh && tamagui build --target web ./app -- next build",
+		"prepare-local": "./scripts/copy-pglite.sh && bun run scripts/gen-migrations.ts",
+		"dev": "bun run prepare-local && next dev",
+		"build": "bun run prepare-local && tamagui build --target web ./app -- next build",
 		"start": "next start",
 		"tamagui:css": "tamagui generate-css",
 		"typecheck": "tsc --noEmit",
