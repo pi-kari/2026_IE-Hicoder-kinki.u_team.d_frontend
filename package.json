@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"prepare-local": "./scripts/copy-pglite.sh && bun run scripts/gen-migrations.ts",
+		"prepare-local": "./scripts/copy-pglite.sh && bun run scripts/gen-migrations.ts && bun run scripts/gen-sw.ts",
 		"dev": "bun run prepare-local && next dev",
 		"build": "bun run prepare-local && tamagui build --target web ./app -- next build",
 		"start": "next start",

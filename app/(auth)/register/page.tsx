@@ -1,16 +1,23 @@
 "use client";
 
 import { useAuth } from "context/AuthContext";
-import { apiUrl } from "lib/api";
-import { uuidv7 } from "lib/uuid";
+import { useLocalDb } from "context/LocalDbContext";
+import { createUser, findUser } from "lib/local/repo";
+import { isUuid } from "lib/uuid";
 import { useState } from "react";
-import { Button, H2, Input, Paragraph, YStack } from "tamagui";
+import { Button, H2, Input, Paragraph, Separator, YStack } from "tamagui";
 
 export default function RegisterPage() {
 	const { registerSession } = useAuth();
+	const { ready } = useLocalDb();
 	const [username, setUsername] = useState("");
+	const [existingId, setExistingId] = useState("");
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// 端末内 DB (WASM) の起動には実測で初回数秒かかる。準備前に押せてしまうと
+	// 「押したのに何も起きない」ことになるので、押させない。
+	const busy = isSubmitting || !ready;
 
 	const handleRegister = async () => {
 		const trimmedName = username.trim();
@@ -22,30 +29,55 @@ export default function RegisterPage() {
 		setErrorMessage(null);
 		setIsSubmitting(true);
 		try {
-			// 1. バックエンドの登録APIを叩く
-			//    ステータスコードを見たいので lib/api の sendJson ではなく素の fetch を使う
-			// user_id はクライアントで作る。オフラインでも登録できる必要があるので
-			// サーバ採番には戻さない (主キーは uuidv7)。
-			const userId = uuidv7();
-			const response = await fetch(apiUrl("/users"), {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ user_id: userId, username: trimmedName }),
-			});
+			// 端末内 DB に直接作る。オフラインでも登録できる。
+			// user_id はクライアント生成の uuidv7 なので、後からサーバへ送っても衝突しない。
+			//
+			// 以前はここだけ素の fetch でステータスコードを見ていたが、
+			// HTTP を経由しなくなったので失敗は例外で来る。
+			const user = await createUser(trimmedName);
 
-			if (!response.ok) {
-				setErrorMessage(`登録に失敗しました (${response.status})`);
-				return;
-			}
-
-			// 2. 成功したら、返ってきたユーザーIDでセッションを開始する
-			//    ログインAPIがないため、この瞬間に端末をユーザーと紐付ける
-			//    （保存後は app/AuthGuard.tsx がメイン画面へ遷移させる）
-			const data: { user_id: string } = await response.json();
-			await registerSession(data.user_id);
+			// ログイン API が無いので、この瞬間に端末をユーザーと紐付ける
+			// (保存後は app/AuthGuard.tsx がメイン画面へ遷移させる)
+			await registerSession(user.user_id);
 		} catch (error) {
 			console.error(error);
-			setErrorMessage("サーバーに接続できませんでした");
+			setErrorMessage("登録に失敗しました");
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	/**
+	 * 2 台目の端末をこのユーザーに合流させる。
+	 *
+	 * このアプリにログインは無く、/register は常に新規ユーザーを作る。
+	 * それだけだと「別の端末で同じユーザーを続ける」手段が無く、
+	 * サーバ同期を入れても意味が無い。ユーザー ID の直接入力で合流させる。
+	 * ID はプロフィール画面に表示している。
+	 */
+	const handleContinue = async () => {
+		const id = existingId.trim();
+		if (!isUuid(id)) {
+			setErrorMessage("ユーザー ID の形式が正しくありません");
+			return;
+		}
+
+		setErrorMessage(null);
+		setIsSubmitting(true);
+		try {
+			// 端末内 DB に無ければ、この端末にはまだそのユーザーのデータが無い。
+			// 同期を入れるまではサーバから取り寄せられないので、その旨を出す。
+			const user = await findUser(id);
+			if (!user) {
+				setErrorMessage(
+					"この端末にそのユーザーのデータがありません（サーバからの取得は未対応）",
+				);
+				return;
+			}
+			await registerSession(user.user_id);
+		} catch (error) {
+			console.error(error);
+			setErrorMessage("読み込みに失敗しました");
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -83,11 +115,38 @@ export default function RegisterPage() {
 				width="100%"
 				maxW={320}
 				theme="green"
-				disabled={isSubmitting}
-				opacity={isSubmitting ? 0.6 : 1}
+				disabled={busy}
+				opacity={busy ? 0.6 : 1}
 				onPress={handleRegister}
 			>
-				{isSubmitting ? "登録中..." : "登録して始める"}
+				{!ready ? "準備中..." : isSubmitting ? "登録中..." : "登録して始める"}
+			</Button>
+
+			<Separator width="100%" maxW={320} my="$2" />
+
+			<Paragraph size="$2" text="center" maxW={320}>
+				別の端末で使っていた場合は、プロフィール画面に表示されるユーザー ID
+				を入力すると続きから使えます。
+			</Paragraph>
+
+			<Input
+				width="100%"
+				maxW={320}
+				placeholder="既存のユーザー ID"
+				value={existingId}
+				onChangeText={setExistingId}
+				autoCapitalize="none"
+				onSubmitEditing={handleContinue}
+			/>
+
+			<Button
+				width="100%"
+				maxW={320}
+				disabled={busy}
+				opacity={busy ? 0.6 : 1}
+				onPress={handleContinue}
+			>
+				既存のユーザー ID で続ける
 			</Button>
 		</YStack>
 	);

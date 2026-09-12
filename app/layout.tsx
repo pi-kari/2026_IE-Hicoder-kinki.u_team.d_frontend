@@ -1,7 +1,9 @@
 import "./globals.css";
 import "./tamagui.generated.css";
 
+import { ServiceWorkerRegistration } from "components/ServiceWorkerRegistration";
 import { AuthProvider } from "context/AuthContext";
+import { LocalDbProvider } from "context/LocalDbContext";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { AuthGuard } from "./AuthGuard";
@@ -26,10 +28,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
 		<html lang="ja" suppressHydrationWarning>
 			<body>
+				<ServiceWorkerRegistration />
 				<NextTamaguiProvider>
-					<AuthProvider>
-						<AuthGuard>{children}</AuthGuard>
-					</AuthProvider>
+					{/* 端末内 DB は認証より外側。DB が開けなければセッションも扱えない */}
+					<LocalDbProvider>
+						<AuthProvider>
+							<AuthGuard>{children}</AuthGuard>
+						</AuthProvider>
+					</LocalDbProvider>
 				</NextTamaguiProvider>
 			</body>
 		</html>

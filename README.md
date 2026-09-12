@@ -32,7 +32,8 @@ bun run dev                  # http://localhost:3000
 | `app/api/**/route.ts` | API。全ハンドラを `withErrorHandling` で包む |
 | `components/TabBar.tsx` | 下部タブバー。expo-router の `<Tabs>` の置き換え |
 | `components/PageHeader.tsx` | タイトル + 戻るボタン。ネストした `<Stack>` の置き換え |
-| `lib/api.ts` | UI 側の API 呼び出し。ベースは相対パスの `/api` |
+| `lib/local/repo.ts` | **UI から見た API**。端末内 DB に対して `lib/domain/**` を直接呼ぶ |
+| `lib/local/db.ts` | 端末内 PostgreSQL (PGlite)。タブ排他・スキーマ世代・書き込みの押し出し |
 | `lib/domain/**` | **業務ロジック**。DB ハンドルを引数に取る純関数。サーバでもブラウザでも動く |
 | `lib/schema.ts` | Drizzle スキーマ (`users` / `books_list` / `progress`)。主キーは uuid |
 | `lib/uuid.ts` | UUIDv7 生成。主キーはクライアントが作る |
@@ -61,6 +62,62 @@ bun run dev                  # http://localhost:3000
   こちらはソースを触らない。
 - **`app/tamagui.generated.css` はコミットする。** `app/layout.tsx` が静的 import
   するので、コミットしないとクリーンチェックアウトで `Module not found` になる。
+
+## オフラインファースト
+
+**データの正は端末内にある。** UI は `lib/local/repo.ts` 経由で端末内の
+PostgreSQL (PGlite / WASM) を直接読み書きし、HTTP は経由しない。
+`app/api/**` は残っているが、いまは仕様テストの対象とサーバ同期の受け口で、
+UI からは呼んでいない。
+
+```
+                     ┌─ app/api/**/route.ts  ── lib/server/db.ts (pg.Pool)
+lib/domain/*.ts ─────┤                              └─ サーバ PostgreSQL
+ (db ハンドルを取る)   │
+                     └─ lib/local/repo.ts ───── lib/local/db.ts (PGlite idb://)
+                                                    └─ 端末内 PostgreSQL ← 作業用の正
+```
+
+`DomainDb` は `NodePgDatabase` / `PgliteDatabase` / `PgTransaction` を
+キャスト無しで受ける。**同じ業務ロジックがサーバでもブラウザでも動く**のが
+SQLite ではなく PGlite を選んだ理由。
+
+### 踏むと痛い落とし穴
+
+- **PGlite はバンドルしない。** Turbopack は `@electric-sql/pglite` を
+  バンドルすると**本番ビルドでのみ**実行時に落ちる
+  (`TypeError: <x>.instantiateWasm is not a function`)。`next dev` では動くので
+  dev は何の証明にもならない。`scripts/copy-pglite.sh` が実体を `public/pglite/`
+  へ置き、`import(/* turbopackIgnore: true */ "/pglite/index.js")` で読む。
+  `drizzle-orm/pglite` も同じパッケージを import するので、
+  `turbopack.resolveAlias` で `lib/local/pglite-stub.ts` に差し替えてある。
+- **書き込みは明示的に押し出す。** PGlite の IndexedDB 保存は既定で遅延し、
+  **書き込み直後にリロードすると行が消える**（実測: 0 秒後のリロードで消え、
+  3 秒待てば残る。オンライン / オフラインを問わない）。
+  `relaxedDurability: false` だけでは足りないので、`lib/local/repo.ts` の
+  書き込み系はすべて `flushLocalDb()` を待つ。
+- **2 タブ目は開かせない。** PGlite は IndexedDB 上で単一接続前提で、
+  2 タブが同時に書くと**例外を出さずに**片方の書き込みが消える（実測）。
+  `navigator.locks` で弾き、画面に理由を出す。
+- **PGlite の初期化はマウント後に。** 全ページ `"use client"` だが Next は
+  クライアントコンポーネントもビルド時にプリレンダリングするので、
+  モジュールスコープで開くと `next build` 中の Node で動いてしまう。
+- **Service Worker が無いとオフラインでは何も開けない。** 端末内 DB があっても
+  ブラウザのエラー画面越しには到達できない。`public/sw.js`
+  (`scripts/gen-sw.ts` が生成) がシェルと `/pglite/*` を配る。
+  App Router のクライアント遷移は RSC ペイロード (`?_rsc=`) を取りに行くので、
+  HTML だけキャッシュするとタブを押した瞬間に落ちる。両方キャッシュしている。
+- **外部画像は使わない。** 表紙やアバターは `lib/placeholder.ts` のデータ URI。
+  外部 URL にするとオフラインで確認したい画面だけ画像が壊れる。
+  木の画像も `next/image` の最適化を通すと `/_next/image?url=` になるので
+  `unoptimized` にしている。
+
+### 別の端末で続きを使う
+
+このアプリにログインは無く、`/register` は常に新規ユーザーを作る。
+2 台目の端末は、プロフィール画面に出ているユーザー ID を
+`/register` の「既存のユーザー ID で続ける」に入れて合流する。
+（サーバからのデータ取得は同期フェーズで対応する。）
 
 ## 主キーは UUIDv7・クライアント生成
 
@@ -102,7 +159,10 @@ bun run dev                  # http://localhost:3000
 |---|---|
 | `bun run test:unit` | `lib/domain/**` をインメモリ PGlite に対して検証。**Docker 不要**、数秒 |
 | `bun run api-spec` | HTTP 層（ステータス / 404・422 のボディ形 / シリアライズ）。空の DB を向けて実行 |
-| `bun run test` | Playwright。`build && start` してからブラウザで叩く |
+| `bun run test` | Playwright。`build && start` してからブラウザで叩く。オフライン動作もここで見る |
+
+`playwright.config.ts` は `reuseExistingServer: true` なので、**手で起動した
+サーバが残っていると古いビルドのまま走る**。挙動が変わらないときはまず疑うこと。
 
 `scripts/api-spec.sh` はもともと FastAPI と Next.js の差分を見る `scripts/parity.sh` だった。
 移植が終わって比較相手が消え、主キーの UUID 化で契約も変わったので、

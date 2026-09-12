@@ -5,11 +5,20 @@ import { ChevronDown } from "@tamagui/lucide-icons-2/icons/ChevronDown";
 import { Plus } from "@tamagui/lucide-icons-2/icons/Plus";
 import { PageHeader } from "components/PageHeader";
 import { useAuth } from "context/AuthContext";
-import { sendJson } from "lib/api";
-import { uuidv7 } from "lib/uuid";
+import { useLocalDb } from "context/LocalDbContext";
+import { createBook } from "lib/local/repo";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BookResponseSchema } from "schemas/openapi";
-import { Button, Card, H3, Input, Select, XStack, YStack } from "tamagui";
+import {
+	Button,
+	Card,
+	H3,
+	Input,
+	Paragraph,
+	Select,
+	XStack,
+	YStack,
+} from "tamagui";
 
 // 既知バグ #3 の UI 側。以前はここが固定文字列 "string" を送っており、
 // サーバ側もそれを捨てて DB 既定値の "積読" を入れていた。両方まとめて直した。
@@ -18,23 +27,32 @@ const STATUSES = ["積読", "読書中", "読了"] as const;
 export default function BooksInformationPage() {
 	const [selectedBook, setSelectedBook] = useState<string>("");
 	const { userId } = useAuth();
+	const { ready } = useLocalDb();
+	const router = useRouter();
 	const [book_pages, setBookPages] = useState<number | null>(null);
 	const [status, setStatus] = useState<string>(STATUSES[0]);
+	const [error, setError] = useState<string | null>(null);
 
 	const submitProgress = async () => {
-		// book_id はクライアントで作る (uuidv7)。サーバに採番させると
-		// オフラインで本を登録できず、同期の再送も重複行を作る。
-		await sendJson(
-			"PUT",
-			`/users/${userId}/books`,
-			{
-				book_id: uuidv7(),
-				book_title: selectedBook,
+		if (!userId || !ready) return;
+		if (!selectedBook.trim() || book_pages === null) {
+			setError("タイトルとページ数を入力してください");
+			return;
+		}
+		setError(null);
+		try {
+			// 端末内 DB に直接書く。オフラインでもここまでは必ず成功する。
+			await createBook(userId, {
+				bookTitle: selectedBook.trim(),
 				status,
-				book_pages: book_pages,
-			},
-			BookResponseSchema,
-		);
+				bookPages: book_pages,
+			});
+			router.push("/record");
+		} catch (e) {
+			// HTTP を経由しなくなったので、失敗はステータスではなく例外で来る。
+			console.error(e);
+			setError("登録に失敗しました");
+		}
 	};
 
 	return (
@@ -95,10 +113,16 @@ export default function BooksInformationPage() {
 									</Select.Viewport>
 								</Select.Content>
 							</Select>
-							<Button size="$5" onPress={submitProgress}>
+							<Button
+								size="$5"
+								disabled={!ready}
+								opacity={ready ? 1 : 0.6}
+								onPress={submitProgress}
+							>
 								登録
 							</Button>
 						</XStack>
+						{error ? <Paragraph color="$red10">{error}</Paragraph> : null}
 					</Card.Header>
 				</Card>
 			</YStack>

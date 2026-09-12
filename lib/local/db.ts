@@ -81,7 +81,14 @@ async function open(): Promise<LocalDb> {
 		/* turbopackIgnore: true */ "/pglite/index.js" as string
 	)) as typeof import("@electric-sql/pglite");
 
-	const client = await mod.PGlite.create(`idb://${DB_NAME}`);
+	const client = await mod.PGlite.create(`idb://${DB_NAME}`, {
+		// 既定 (relaxedDurability: true) だと IndexedDB への書き出しがクエリの
+		// 完了より後にずれ込み、**書き込み直後にリロードすると消える**
+		// (実測: 書き込み 0 秒後のリロードで本が消え、3 秒待てば残る。
+		//  オンライン / オフラインを問わず発生する)。
+		// オフラインファーストの前提が崩れるので、速度より耐久性を採る。
+		relaxedDurability: false,
+	});
 	const result = await applyMigrations(client);
 	if (!result.ok) {
 		await client.close();
@@ -108,6 +115,23 @@ export function getLocalDb(): Promise<LocalDb> {
 		});
 	}
 	return pending;
+}
+
+/**
+ * 書き込みを IndexedDB まで確実に押し出す。
+ *
+ * PGlite の IndexedDB 保存は既定で遅延する (relaxedDurability)。
+ * 実測では、書き込み直後にリロードすると行が消えた
+ * (0 秒後のリロードで消え、3 秒待てば残る。オンライン / オフラインを問わない)。
+ * relaxedDurability: false を指定しても内部の syncToFs は
+ * 「既に同期が予約済みなら即 return」する作りなので、最後の書き込みが
+ * 取りこぼされうる。オフラインファーストで書き込みが消えるのは致命的なので、
+ * 書き込みごとに明示的に押し出す。
+ */
+export async function flushLocalDb(): Promise<void> {
+	if (!pending) return;
+	const { client } = await pending;
+	await client.syncToFs();
 }
 
 /** ローカル DB を捨ててサーバから作り直すための入口。

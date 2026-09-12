@@ -4,13 +4,10 @@ import { Check } from "@tamagui/lucide-icons-2/icons/Check";
 import { ChevronDown } from "@tamagui/lucide-icons-2/icons/ChevronDown";
 import { Toaster, toast } from "@tamagui/toast/v2";
 import { useAuth } from "context/AuthContext";
-import { getJson, sendJson } from "lib/api";
+import { useLocalDb } from "context/LocalDbContext";
+import { listBooks, recordProgress } from "lib/local/repo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-	BookResponseSchema,
-	ProgressUpdateResponseSchema,
-} from "schemas/openapi";
 import {
 	Button,
 	Card,
@@ -26,6 +23,7 @@ import {
 export default function RecordPage() {
 	const router = useRouter();
 	const { userId, isLoading } = useAuth();
+	const { ready } = useLocalDb();
 
 	// 本の一覧。book_id は uuid なので string。
 	const [books, setBooks] = useState<{ id: string; title: string }[]>([]);
@@ -35,16 +33,13 @@ export default function RecordPage() {
 	const [pagesRead, setPagesRead] = useState<string>("");
 
 	useEffect(() => {
-		if (isLoading || userId === null) {
+		if (isLoading || userId === null || !ready) {
 			return;
 		}
 
 		const fetchBooks = async () => {
 			try {
-				const response = await getJson(
-					`/users/${userId}/books`,
-					BookResponseSchema.array(),
-				);
+				const response = await listBooks(userId);
 
 				if (response.length === 0) {
 					router.push("/books-information");
@@ -65,7 +60,7 @@ export default function RecordPage() {
 			}
 		};
 		fetchBooks();
-	}, [isLoading, userId, router]);
+	}, [isLoading, userId, ready, router]);
 
 	// 登録ボタンが押されたときの送信処理
 	const submitProgress = async () => {
@@ -83,15 +78,25 @@ export default function RecordPage() {
 			return;
 		}
 
-		// サーバーへPOSTリクエストを送信
-		const response = await sendJson(
-			"POST",
-			`/users/${userId}/books/${selectedBookId}/progress`,
-			{ pages_read: Number(pagesRead) },
-			ProgressUpdateResponseSchema,
-		);
+		if (!userId) return;
 
-		toast.success(`進捗を登録しました: ${response.total_progress}`);
+		// 端末内 DB に直接書く。オフラインでもここまでは必ず成功する。
+		//
+		// HTTP を経由しなくなったので失敗はステータスではなく例外で来る。
+		// 以前はここに try/catch が無く、500 のときレスポンスの JSON パースで
+		// unhandled rejection になってユーザーには何も出なかった。
+		try {
+			const response = await recordProgress(
+				userId,
+				selectedBookId,
+				Number(pagesRead),
+			);
+			toast.success(`進捗を登録しました: ${response.total_progress}`);
+			setPagesRead("");
+		} catch (error) {
+			console.error(error);
+			toast.error("記録に失敗しました");
+		}
 	};
 
 	return (

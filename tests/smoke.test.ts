@@ -30,11 +30,13 @@ test("未ログインだと /register に飛ばされ、登録するとタブ画
 
 	// 登録するとセッションが保存され /record へ
 	await page.getByPlaceholder("ユーザー名").fill(`e2e-${Date.now()}`);
-	await page.getByText("登録して始める").click();
+	// 端末内 DB (WASM) の起動が終わるまでボタンは無効
+	const submit = page.getByRole("button", { name: "登録して始める" });
+	await expect(submit).toBeEnabled({ timeout: 30_000 });
+	await submit.click();
 
-	await page.waitForURL("**/record");
-	await expect(page.getByText("進捗を記録")).toBeVisible();
-
+	// 本が 1 冊も無いと /record はさらに /books-information へ送る
+	await page.waitForURL((url) => !url.pathname.endsWith("/register"));
 	// タブバーが出ていること
 	await expect(page.getByLabel("ホーム")).toBeVisible();
 	await expect(page.getByLabel("プロフィール")).toBeVisible();
@@ -55,19 +57,24 @@ test("未ログインだと /register に飛ばされ、登録するとタブ画
 test("本を読了すると木が最終段階の画像になる", async ({ page }) => {
 	await page.goto("/register");
 	await page.getByPlaceholder("ユーザー名").fill(`tree-${Date.now()}`);
-	await page.getByText("登録して始める").click();
-	await page.waitForURL("**/record");
+	const submit = page.getByRole("button", { name: "登録して始める" });
+	await expect(submit).toBeEnabled({ timeout: 30_000 });
+	await submit.click();
+	await page.waitForURL((url) => !url.pathname.endsWith("/register"));
 
 	// 本を 1 冊登録する (100 ページ)
 	await page.goto("/books-information");
 	await page.getByPlaceholder("本のタイトルを入力").fill("読了する本");
 	await page.getByPlaceholder("ページ数を入力").fill("100");
-	await page.getByRole("button", { name: "登録", exact: true }).click();
+	const addBook = page.getByRole("button", { name: "登録", exact: true });
+	await expect(addBook).toBeEnabled({ timeout: 30_000 });
+	await addBook.click();
+	// 登録できると /record へ送られる
+	await page.waitForURL("**/record");
 
 	// 100 ページ読んだことにする。
 	// 本は 1 冊なので、一覧を取った時点で自動で選択されている
 	// (book_id が uuidv7 = 時刻順なので「末尾 = 最後に登録した本」)。
-	await page.goto("/record");
 	await expect(page.getByRole("combobox")).toHaveText("読了する本");
 	await page.getByPlaceholder("今回読んだページ数を入力").fill("100");
 	await page.getByRole("button", { name: "登録", exact: true }).click();

@@ -4,36 +4,35 @@ import { Plus } from "@tamagui/lucide-icons-2/icons/Plus";
 import { ProfileWidget } from "components/widgets/ProfileWidget";
 import { TreeWidget } from "components/widgets/TreeWidget";
 import { useAuth } from "context/AuthContext";
-import { getJson } from "lib/api";
+import { useLocalDb } from "context/LocalDbContext";
+import { listBooks } from "lib/local/repo";
+import { bookCover } from "lib/placeholder";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BookResponseSchema } from "schemas/openapi";
+import type { BookResponseSchema } from "schemas/openapi";
 import { Button, Card, Image, XStack, YStack } from "tamagui";
 import type z from "zod";
 
 export default function ProfilePage() {
 	const { userId } = useAuth();
+	const { ready } = useLocalDb();
 	const router = useRouter();
 	const [books, setBooks] = useState<z.infer<typeof BookResponseSchema>[]>([]);
 
 	useEffect(() => {
-		// セッション復元前 / 未ログインのときは叩かない
-		if (!userId) return;
+		// セッション復元前 / 未ログイン / DB 未準備のときは叩かない
+		if (!userId || !ready) return;
 
 		const fetchProgress = async () => {
 			try {
-				const response = await getJson(
-					`/users/${userId}/books`,
-					BookResponseSchema.array(),
-				);
-				setBooks(response);
+				setBooks(await listBooks(userId));
 			} catch (error) {
 				console.error("進捗の取得に失敗しました:", error);
 			}
 		};
 
 		fetchProgress();
-	}, [userId]);
+	}, [userId, ready]);
 
 	return (
 		<YStack flex={1} p="$4" items="center" justify="center" gap="$4">
@@ -48,8 +47,7 @@ export default function ProfilePage() {
 					{books.slice(-3).map((book) => (
 						<Image
 							key={book.book_id}
-							// book_id は 36 文字の uuid になったので、そのまま流すと画像内で潰れる
-							src={`https://placehold.co/200x280/png?text=${book.book_id.slice(0, 8)}`}
+							src={bookCover(book.book_id, book.book_title)}
 							width={65}
 							height={90}
 							objectFit="cover"

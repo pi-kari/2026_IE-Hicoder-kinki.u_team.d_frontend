@@ -15,6 +15,9 @@ app/**/_*.css
 # scripts/copy-pglite.sh が dev/build の前に毎回コピーする。
 public/pglite
 
+# scripts/gen-sw.ts の生成物 (PGlite の版数を埋め込むため)
+public/sw.js
+
 # local env files
 .env
 .env.local

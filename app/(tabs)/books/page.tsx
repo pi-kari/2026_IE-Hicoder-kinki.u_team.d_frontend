@@ -2,10 +2,12 @@
 
 import { PageHeader } from "components/PageHeader";
 import { useAuth } from "context/AuthContext";
-import { getJson } from "lib/api";
+import { useLocalDb } from "context/LocalDbContext";
+import { listBooks } from "lib/local/repo";
+import { bookCover } from "lib/placeholder";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BookResponseSchema } from "schemas/openapi";
+import type { BookResponseSchema } from "schemas/openapi";
 import {
 	Button,
 	Card,
@@ -20,6 +22,7 @@ import type z from "zod";
 
 export default function BooksPage() {
 	const { userId } = useAuth();
+	const { ready } = useLocalDb();
 	const router = useRouter();
 
 	const [books, setBooks] = useState<z.infer<typeof BookResponseSchema>[]>([]);
@@ -28,23 +31,19 @@ export default function BooksPage() {
 	const [isLoading] = useState(false);
 
 	useEffect(() => {
-		// セッション復元前 / 未ログインのときは叩かない
-		if (!userId) return;
+		// セッション復元前 / 未ログイン / DB 未準備のときは叩かない
+		if (!userId || !ready) return;
 
 		const fetchProgress = async () => {
 			try {
-				const response = await getJson(
-					`/users/${userId}/books`,
-					BookResponseSchema.array(),
-				);
-				setBooks(response);
+				setBooks(await listBooks(userId));
 			} catch (error) {
 				console.error("進捗の取得に失敗しました:", error);
 			}
 		};
 
 		fetchProgress();
-	}, [userId]);
+	}, [userId, ready]);
 
 	return (
 		<YStack flex={1} bg="$background">
@@ -74,8 +73,7 @@ export default function BooksPage() {
 
 						<YStack px="$2" pb="$2" items="center">
 							<Image
-								// book_id は 36 文字の uuid になったので、そのまま流すと画像内で潰れる
-								src={`https://placehold.co/200x280/png?text=${book.book_id.slice(0, 8)}`}
+								src={bookCover(book.book_id, book.book_title)}
 								objectFit="cover"
 								width="100%"
 								aspectRatio={1 / 1.4}
