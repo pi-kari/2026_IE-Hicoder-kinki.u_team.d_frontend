@@ -1,0 +1,8 @@
+[install]
+# bun は既定で peerDependencies を自動インストールする。
+# Tamagui の native 向けサブパッケージ (@tamagui/animations-reanimated,
+# @floating-ui/react-native など) がそれ経由で react-native 36MB / reanimated /
+# worklets を引き込むが、web only の本アプリでは 1 バイトも使わない。
+#
+# react / react-dom は直接依存なので、これを切っても影響しない。
+peer = false

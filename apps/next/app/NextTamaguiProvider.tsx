@@ -1,34 +1,24 @@
 "use client";
 
-import { ToastProvider, ToastViewport } from "@tamagui/toast";
 import { NextThemeProvider, useRootTheme } from "@tamagui/next-theme";
-import { useServerInsertedHTML } from "next/navigation";
-import type { ReactNode } from "react";
-import { StyleSheet } from "react-native";
-import { TamaguiProvider } from "tamagui";
+import { ToastProvider, ToastViewport } from "@tamagui/toast";
 import { CurrentToast } from "components/CurrentToast";
+import type { ReactNode } from "react";
+import { TamaguiProvider } from "tamagui";
 import { config } from "../tamagui.config";
 
+/**
+ * 旧 components/Provider.tsx の置き換え。
+ *
+ * テーマは react-native の useColorScheme ではなく @tamagui/next-theme から取る。
+ * disableRootThemeClass を付けて、テーマクラスは NextThemeProvider に一本化する。
+ *
+ * NOTE: react-native-web のシートを useServerInsertedHTML で差し込む手当ては入れない。
+ * Tamagui の web ビルドは RNW を使わず、スタイルは tamagui.generated.css と
+ * アトミッククラスとして SSR HTML に乗るため不要。
+ */
 export function NextTamaguiProvider({ children }: { children: ReactNode }) {
 	const [theme, setTheme] = useRootTheme();
-
-	// react-native-web はスタイルを実行時に <style> へ流し込む。
-	// SSR の HTML にはそれが乗らないので、初回描画が素のままになる (FOUC)。
-	// getSheet() で SSR 時点のシートを取り出して head に差し込む。
-	useServerInsertedHTML(() => {
-		// 型は react-native のものが解決されるが、実体は turbopack.resolveAlias で
-		// react-native-web に差し替わっている。getSheet() は RNW 固有の API。
-		const sheet = (
-			StyleSheet as unknown as { getSheet(): { id: string; textContent: string } }
-		).getSheet();
-		return (
-			<style
-				// biome-ignore lint/security/noDangerouslySetInnerHtml: RNW の生成 CSS をそのまま挿す
-				dangerouslySetInnerHTML={{ __html: sheet.textContent }}
-				id={sheet.id}
-			/>
-		);
-	});
 
 	return (
 		<NextThemeProvider
