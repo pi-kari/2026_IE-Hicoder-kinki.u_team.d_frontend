@@ -37,7 +37,7 @@ export default function RegisterScreen() {
 			//    ログインAPIがないため、この瞬間に端末をユーザーと紐付ける
 			//    （保存後は _layout.tsx の useProtectedRoute がメイン画面へ遷移させる）
 			const data: { user_id: number } = await response.json();
-			await registerSession(String(data.user_id));
+			await registerSession(String(data.user_id), trimmedName);
 		} catch (error) {
 			console.error(error);
 			setErrorMessage("サーバーに接続できませんでした");
