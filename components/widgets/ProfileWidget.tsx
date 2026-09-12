@@ -1,3 +1,4 @@
+import { useAuth } from "context/AuthContext";
 import {
 	Avatar,
 	Card,
@@ -10,6 +11,8 @@ import {
 } from "tamagui";
 
 export function ProfileWidget() {
+	const { userName } = useAuth();
+
 	return (
 		<Card
 			width="100%"
@@ -23,7 +26,7 @@ export function ProfileWidget() {
 						<Avatar.Image src="http://picsum.photos/200/301" />
 					</Avatar>
 					<Paragraph fontSize={12}>
-						<Strong>Name</Strong>
+						<Strong>{userName ?? "Name"}</Strong>
 					</Paragraph>
 				</YStack>
 				<YStack flex={1} gap="$2">
