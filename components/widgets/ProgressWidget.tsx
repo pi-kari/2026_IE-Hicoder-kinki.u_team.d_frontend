@@ -1,6 +1,8 @@
+"use client";
+
 import { useAuth } from "context/AuthContext";
-import { fetch } from "expo/fetch";
-import { Link } from "expo-router";
+import { getJson } from "lib/api";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BookResponseSchema } from "schemas/openapi";
 import { Button, Card, H2, Paragraph, Progress, XStack, YStack } from "tamagui";
@@ -8,6 +10,7 @@ import type z from "zod";
 
 export function ProgressWidget() {
 	const { userId } = useAuth();
+	const router = useRouter();
 	const [books, setBooks] = useState<z.infer<typeof BookResponseSchema>[]>([]);
 
 	useEffect(() => {
@@ -16,11 +19,10 @@ export function ProgressWidget() {
 
 		const fetchProgress = async () => {
 			try {
-				const response = await fetch(
-					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books`,
-				)
-					.then((res) => res.json())
-					.then((res) => BookResponseSchema.array().parse(res));
+				const response = await getJson(
+					`/users/${userId}/books`,
+					BookResponseSchema.array(),
+				);
 				setBooks(response);
 			} catch (error) {
 				console.error("Failed to fetch progress:", error);
@@ -54,9 +56,9 @@ export function ProgressWidget() {
 			</YStack>
 			<Card.Footer p="$4">
 				<XStack flex={1} />
-				<Link href="/books-information" asChild>
-					<Button rounded="$10">詳細を見る</Button>
-				</Link>
+				<Button rounded="$10" onPress={() => router.push("/books-information")}>
+					詳細を見る
+				</Button>
 			</Card.Footer>
 		</Card>
 	);

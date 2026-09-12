@@ -1,22 +1,15 @@
+"use client";
+
 import { useAuth } from "context/AuthContext";
-import { fetch } from "expo/fetch";
+import { getJson } from "lib/api";
+import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Image } from "react-native";
-import {
-	ProgressResponseSchema,
-	ResponseTreeStateSchema,
-} from "schemas/openapi";
-import { z } from "zod";
+import { ResponseTreeStateSchema } from "schemas/openapi";
+import tree1 from "../public/images/tree_1.png";
+import tree2 from "../public/images/tree_2.png";
+import tree3 from "../public/images/tree_3.png";
 
-// require はビルド時に静的解決されるため、変数で組み立てず配列に列挙する
-const TREE_IMAGES = [
-	require("../assets/images/tree_1.png"),
-	require("../assets/images/tree_2.png"),
-	require("../assets/images/tree_3.png"),
-];
-
-// このエンドポイントは本ごとの進捗の配列を返す
-const ProgressListSchema = z.array(ProgressResponseSchema);
+const TREE_IMAGES = [tree1, tree2, tree3];
 
 export function ProgressTree() {
 	const { userId } = useAuth();
@@ -29,15 +22,10 @@ export function ProgressTree() {
 		const fetchProgress = async () => {
 			try {
 				const bookId = 5; // ここは適切な本のIDに置き換える必要があります
-				const response = await fetch(
-					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/${bookId}/tree`,
-					{
-						method: "GET",
-					},
-				)
-					.then((res) => res.json())
-					.then((res) => ResponseTreeStateSchema.parse(res));
-
+				const response = await getJson(
+					`/users/${userId}/books/${bookId}/tree`,
+					ResponseTreeStateSchema,
+				);
 				setProgress(response.tree_state);
 			} catch (error) {
 				console.error("進捗の取得に失敗しました:", error);
@@ -52,13 +40,15 @@ export function ProgressTree() {
 		TREE_IMAGES.length - 1,
 	);
 
-	// tamagui の Image は web ビルドだと <img> に props を流すだけで source を見ない
-	// （src 文字列専用）。require() のローカル画像は react-native 側の Image を使う。
+	// Expo 版は「tamagui の Image が web で source を見ない」ため react-native の Image に
+	// 逃がしていたが、Next では next/image の静的 import で素直に書ける。
 	return (
 		<Image
-			source={TREE_IMAGES[index]}
-			style={{ width: 200, height: 200, resizeMode: "contain" }}
-			aria-label={`成長段階 ${index + 1} の木`}
+			src={TREE_IMAGES[index]}
+			width={200}
+			height={200}
+			style={{ objectFit: "contain" }}
+			alt={`成長段階 ${index + 1} の木`}
 		/>
 	);
 }

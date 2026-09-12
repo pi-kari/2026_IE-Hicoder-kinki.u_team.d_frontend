@@ -1,33 +1,21 @@
 // セッションIDの保存先。
-// expo-secure-store はネイティブ専用モジュールなので、web では localStorage を使う。
-// （web ビルドは output: "static" のため、SSR 中は window が無い点にも注意）
-import * as SecureStore from "expo-secure-store";
-import { Platform } from "react-native";
-
-const isWeb = Platform.OS === "web";
+// Expo 時代は native の expo-secure-store と web の localStorage を Platform.OS で
+// 分岐していたが、native を廃止したので localStorage だけになった。
+//
+// typeof window のガードは残す。Next は SSR / RSC でこのモジュールを評価しうるため、
+// 静的エクスポートだった頃より重要になっている。
 
 export async function getItem(key: string): Promise<string | null> {
-	if (isWeb) {
-		if (typeof window === "undefined") return null;
-		return window.localStorage.getItem(key);
-	}
-	return SecureStore.getItemAsync(key);
+	if (typeof window === "undefined") return null;
+	return window.localStorage.getItem(key);
 }
 
 export async function setItem(key: string, value: string): Promise<void> {
-	if (isWeb) {
-		if (typeof window === "undefined") return;
-		window.localStorage.setItem(key, value);
-		return;
-	}
-	await SecureStore.setItemAsync(key, value);
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(key, value);
 }
 
 export async function deleteItem(key: string): Promise<void> {
-	if (isWeb) {
-		if (typeof window === "undefined") return;
-		window.localStorage.removeItem(key);
-		return;
-	}
-	await SecureStore.deleteItemAsync(key);
+	if (typeof window === "undefined") return;
+	window.localStorage.removeItem(key);
 }

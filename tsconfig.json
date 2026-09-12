@@ -1,11 +1,40 @@
 {
-  "extends": "./tsconfig.base",
-  "compilerOptions": {
-    "strict": true
-  },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  // apps/next は独立した Next.js プロジェクトで、自前の tsconfig と node_modules を持つ。
-  // 除外しないと include の **/*.ts が拾い、next/pg/drizzle-orm の型が無くて壊れる。
-  // NOTE: exclude は継承値を「置換」するので tsconfig.base.json 由来の "_" を引き継ぐこと。
-  "exclude": ["_", "apps"]
+	"compilerOptions": {
+		"target": "ES2022",
+		"lib": ["dom", "dom.iterable", "esnext"],
+		"allowJs": false,
+		"skipLibCheck": true,
+		"strict": true,
+		"noEmit": true,
+		"esModuleInterop": true,
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"jsx": "react-jsx",
+		"incremental": true,
+		"types": ["node"],
+		"plugins": [
+			{
+				"name": "next"
+			}
+		],
+		"paths": {
+			"@/*": ["./*"],
+			// Expo 側は tsconfig.base.json の baseUrl 頼みでベア import していた。
+			// Next は baseUrl のルート解決をしないので明示的に張る。
+			"components/*": ["./components/*"],
+			"context/*": ["./context/*"],
+			"schemas/*": ["./schemas/*"],
+			"lib/*": ["./lib/*"]
+		}
+	},
+	"include": [
+		"next-env.d.ts",
+		"**/*.ts",
+		"**/*.tsx",
+		".next/types/**/*.ts",
+		".next/dev/types/**/*.ts"
+	],
+	"exclude": ["node_modules"]
 }
