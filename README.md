@@ -228,6 +228,48 @@ cookie が切れたら 1 台目でコードを発行し直す。
 
 `60/120` は 49 → **50**、`120/120` は 99 → **100** に変わっている。退行ではない。
 
+## デプロイ
+
+**Node が動くホストが要る。** `app/api/**` は 15 本すべて動的ハンドラなので、
+GitHub Pages のような静的ホスティングでは同期と認証が動かない
+（UI とオフライン動作だけなら `output: "export"` で静的書き出しできることは確認済み。
+ただしサーバ側は丸ごと失われる）。
+
+### Vercel の場合
+
+Route Handler はサーバレス関数として動く。edge ランタイムの指定はしていないので
+Node ランタイムになり、`pg` も `node:crypto` もそのまま使える。
+
+手順:
+
+1. **PostgreSQL を用意する**（Vercel は DB を持たないので Neon / Supabase 等）。
+   `DATABASE_URL` は**接続プーラ経由**のものにすること
+   （Neon なら `-pooler` 付き、Supabase ならポート 6543）。
+2. `DATABASE_URL` を環境変数に設定する。
+3. **マイグレーションを流す**（自動では走らない）:
+   `DATABASE_URL=<本番> bunx --bun drizzle-kit migrate`
+4. デプロイ。ビルドは `package.json` の `build` がそのまま使われる
+   （`prepare-local` が PGlite の実体コピー・マイグレーション焼き込み・
+   Service Worker 生成を行うので、この順序を崩さないこと）。
+
+注意点:
+
+- **接続プールはサーバレスを検出して 1 本にしている**（`lib/server/db.ts`）。
+  サーバレスは水平に増えるので、インスタンスごとに 10 本張ると Postgres の
+  接続上限をすぐ使い切る。
+- セッション cookie の `Secure` は `NODE_ENV=production` で自動的に付く。
+- `public/pglite/` は約 18MB の静的アセット。ビルド時に生成されコミットしない。
+
+### GitHub Pages に UI だけ置く場合
+
+サーバを別ホストに置き、UI だけ Pages に出すこともできるが、
+**cookie が cross-origin になる**ので `SameSite=None; Secure` と
+オリジンを明示した CORS（`*` は credentials と併用不可）が要る。
+さらにプロジェクトページはサブパス配信になるため、`basePath` / `assetPrefix` と、
+絶対パスで書いている箇所（`/pglite/index.js` の import、`/sw.js` の登録、
+`public/sw.js` 内の `SHELL` と `/pglite/` 判定、manifest の `start_url`）を
+すべてサブパス対応にする必要がある。
+
 ## 検証
 
 | | |

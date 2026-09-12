@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+// 静的書き出し (output: export) では明示が要る
+export const dynamic = "force-static";
+
 // Next 16 内蔵のマニフェスト。Service Worker は内蔵していないので
 // public/sw.js を別途用意している (scripts/gen-sw.ts が生成)。
 export default function manifest(): MetadataRoute.Manifest {

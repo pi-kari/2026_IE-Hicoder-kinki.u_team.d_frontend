@@ -34,28 +34,16 @@ const nextConfig: NextConfig = {
 	// チームのリポジトリに意図しないファイルが増えるのを避けるため。
 	agentRules: false,
 
-	// FastAPI の CORSMiddleware と等価:
-	//   allow_origins=["*"], allow_credentials=False,
-	//   allow_methods=["*"], allow_headers=["*"]
+	// NOTE: CORS ヘッダは**付けない**。
 	//
-	// UI が同一オリジンになったのでブラウザからは不要だが、
-	// 外部ツールやネイティブから叩く余地を残すコストはゼロなので維持する。
-	async headers() {
-		return [
-			{
-				source: "/api/:path*",
-				headers: [
-					{ key: "Access-Control-Allow-Origin", value: "*" },
-					{
-						key: "Access-Control-Allow-Methods",
-						value: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-					},
-					{ key: "Access-Control-Allow-Headers", value: "*" },
-					{ key: "Access-Control-Max-Age", value: "600" },
-				],
-			},
-		];
-	},
+	// 以前は FastAPI の CORSMiddleware と等価の `Access-Control-Allow-Origin: *`
+	// を返していたが、認証を cookie で行うようになったので意味が変わった。
+	// ブラウザは credentials 付きのリクエストに対して `*` を受け付けないので
+	// 役に立たないうえ、「どこからでも叩ける」という誤解を招く。
+	// UI は同一オリジンなので CORS そのものが不要。
+	//
+	// 別オリジンから叩く必要が出たら、`*` ではなく具体的なオリジンを列挙し、
+	// `Access-Control-Allow-Credentials: true` と併せて設定すること。
 };
 
 export default nextConfig;
