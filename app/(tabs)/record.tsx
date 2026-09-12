@@ -99,7 +99,7 @@ export default function TabTwoScreen() {
 			return;
 		}
 
-		// サーバーへPUTリクエストを送信
+		// サーバーへPOSTリクエストを送信
 		const response = await fetch(
 			`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/${selectedBookId}/progress`,
 			{
