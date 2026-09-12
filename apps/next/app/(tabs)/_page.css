@@ -1,0 +1,10 @@
+:root ._fd-column{flex-direction:column;}
+:root ._grow-1{flex-grow:1;}
+:root ._shrink-1{flex-shrink:1;}
+:root ._fb-0px{flex-basis:0px;}
+:root ._items-center{align-items:center;}
+:root ._gap-c-space-8{gap:var(--c-space-8);}
+:root ._pr-c-space-10{padding-right:var(--c-space-10);}
+:root ._pl-c-space-10{padding-left:var(--c-space-10);}
+:root ._pt-c-space-5{padding-top:var(--c-space-5);}
+:root ._bg-background{background-color:var(--background);}
