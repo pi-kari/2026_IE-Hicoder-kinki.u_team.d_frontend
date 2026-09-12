@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { isUuid } from "./uuid";
 
 /** FastAPI の HTTPException が返すボディ: {"detail": "..."} */
 export function errorJson(message: string, status: number) {
@@ -59,21 +60,27 @@ type ParamResult =
 	| { ok: true; value: number }
 	| { ok: false; response: Response };
 
-/** FastAPI は非整数のパスパラメータに 422 を返す。ステータスと detail 配列の形を合わせる。 */
-export function intParam(name: string, raw: string): ParamResult {
-	if (!/^-?\d+$/.test(raw)) {
+type UuidParamResult =
+	| { ok: true; value: string }
+	| { ok: false; response: Response };
+
+/** 主キーは uuid になったので、パスパラメータもこちらで検証する。
+ *  422 の loc は以前の intParam と同じ ["path", name] のままなので、
+ *  parity.sh の正規化 (loc だけ比較) はそのまま使える。 */
+export function uuidParam(name: string, raw: string): UuidParamResult {
+	if (!isUuid(raw)) {
 		return {
 			ok: false,
 			response: unprocessable([
 				{
 					loc: ["path", name],
-					msg: "Input should be a valid integer, unable to parse string as an integer",
-					type: "int_parsing",
+					msg: "Input should be a valid UUID, unable to parse string as a UUID",
+					type: "uuid_parsing",
 				},
 			]),
 		};
 	}
-	return { ok: true, value: Number(raw) };
+	return { ok: true, value: raw };
 }
 
 /** クエリパラメータの整数。未指定なら fallback。FastAPI と同じく不正値は 422。 */

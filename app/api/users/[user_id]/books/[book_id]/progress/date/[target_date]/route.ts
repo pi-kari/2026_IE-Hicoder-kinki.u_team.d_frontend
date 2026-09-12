@@ -1,8 +1,8 @@
 import { getProgressOnDay } from "@/lib/domain/progress";
 import {
 	bookNotFound,
-	intParam,
 	unprocessable,
+	uuidParam,
 	withErrorHandling,
 } from "@/lib/http";
 import { parseIsoDate } from "@/lib/jst";
@@ -19,9 +19,9 @@ type Ctx = {
 //   + crud.get_book_progress_by_date
 export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 	const { user_id, book_id, target_date } = await ctx.params;
-	const userId = intParam("user_id", user_id);
+	const userId = uuidParam("user_id", user_id);
 	if (!userId.ok) return userId.response;
-	const bookId = intParam("book_id", book_id);
+	const bookId = uuidParam("book_id", book_id);
 	if (!bookId.ok) return bookId.response;
 
 	// FastAPI ではパスパラメータの検証がハンドラ本体より先に走るので、

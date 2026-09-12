@@ -1,8 +1,8 @@
 import { createBook, listBooks } from "@/lib/domain/books";
 import {
-	intParam,
 	jsonBody,
 	userNotFound,
+	uuidParam,
 	withErrorHandling,
 } from "@/lib/http";
 import { BookCreateBody } from "@/lib/requests";
@@ -17,7 +17,7 @@ type Ctx = { params: Promise<{ user_id: string }> };
 // NOTE: ユーザが存在しなくても 404 ではなく空配列を返す（現行の挙動）。
 export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 	const { user_id } = await ctx.params;
-	const userId = intParam("user_id", user_id);
+	const userId = uuidParam("user_id", user_id);
 	if (!userId.ok) return userId.response;
 
 	const rows = await listBooks(db, userId.value);
@@ -28,15 +28,18 @@ export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 // routers/items.py:create_user_book
 export const PUT = withErrorHandling(async (request: Request, ctx: Ctx) => {
 	const { user_id } = await ctx.params;
-	const userId = intParam("user_id", user_id);
+	const userId = uuidParam("user_id", user_id);
 	if (!userId.ok) return userId.response;
 
 	const body = await jsonBody(request, BookCreateBody);
 	if (!body.ok) return body.response;
 
 	const created = await createBook(db, userId.value, {
+		bookId: body.data.book_id,
 		bookTitle: body.data.book_title,
+		status: body.data.status,
 		bookPages: body.data.book_pages,
+		updatedAt: new Date(),
 	});
 	if (!created) return userNotFound();
 

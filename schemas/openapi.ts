@@ -8,13 +8,16 @@
 import { z } from "zod";
 
 export const BookCreateSchema = z.object({
+	// 主キーはクライアント生成 (uuidv7)。サーバに採番させると、その id が
+	// クライアントに伝わらず同期の再送が重複行を作る。
+	book_id: z.uuid(),
 	book_title: z.string(),
 	status: z.string(),
 	book_pages: z.number(),
 });
 
 export const BookResponseSchema = z.object({
-	book_id: z.number(),
+	book_id: z.uuid(),
 	status: z.string(),
 	book_title: z.string(),
 	book_pages: z.number(),
@@ -48,6 +51,7 @@ export const TodayProgressResponseSchema = z.object({
 });
 
 export const UserCreateSchema = z.object({
+	user_id: z.uuid(),
 	username: z.string(),
 	user_mail_address: z.union([z.string(), z.unknown()]).optional(),
 });
@@ -57,7 +61,7 @@ export const UserNameUpdateSchema = z.object({
 });
 
 export const UserResponseSchema = z.object({
-	user_id: z.number(),
+	user_id: z.uuid(),
 	username: z.string(),
 	number_of_books: z.number(),
 });

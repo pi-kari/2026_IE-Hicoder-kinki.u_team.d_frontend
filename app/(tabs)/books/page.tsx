@@ -74,7 +74,8 @@ export default function BooksPage() {
 
 						<YStack px="$2" pb="$2" items="center">
 							<Image
-								src={`https://placehold.co/200x280/png?text=${book.book_id}`}
+								// book_id は 36 文字の uuid になったので、そのまま流すと画像内で潰れる
+								src={`https://placehold.co/200x280/png?text=${book.book_id.slice(0, 8)}`}
 								objectFit="cover"
 								width="100%"
 								aspectRatio={1 / 1.4}

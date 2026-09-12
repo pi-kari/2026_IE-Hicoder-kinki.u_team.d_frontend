@@ -15,7 +15,7 @@
 		"db:migrate": "bunx --bun drizzle-kit migrate",
 		"db:push": "bunx --bun drizzle-kit push",
 		"db:studio": "bunx --bun drizzle-kit studio",
-		"parity": "./scripts/parity.sh"
+		"api-spec": "./scripts/api-spec.sh"
 	},
 	"dependencies": {
 		"@electric-sql/pglite": "^0.5.8",

@@ -6,17 +6,24 @@ type UserRow = typeof users.$inferSelect;
 
 /** routers/users.py:create_user
  *
- * NOTE: username が重複すると unique 違反で throw する。呼び出し側はこれを
- * 捕まえず 500 にすること (FastAPI も IntegrityError 未処理で 500 だった)。 */
+ * userId / updatedAt は呼び出し側が渡す。サーバに採番も打刻もさせない
+ * (理由は lib/domain/db.ts のコメント)。 */
 export async function createUser(
 	db: DomainDb,
-	input: { username: string; userMailAddress: string | null },
+	input: {
+		userId: string;
+		username: string;
+		userMailAddress: string | null;
+		updatedAt: Date;
+	},
 ): Promise<UserRow> {
 	const [created] = await db
 		.insert(users)
 		.values({
+			userId: input.userId,
 			username: input.username,
 			userMailAddress: input.userMailAddress,
+			updatedAt: input.updatedAt,
 		})
 		.returning();
 
@@ -27,7 +34,7 @@ export async function createUser(
  *  null === User not found */
 export async function getUser(
 	db: DomainDb,
-	userId: number,
+	userId: string,
 ): Promise<Pick<UserRow, "userId" | "username" | "numberOfBooks"> | null> {
 	const [user] = await db
 		.select({
@@ -45,18 +52,18 @@ export async function getUser(
 /** routers/users.py:update_user_name + crud.update_user_name
  *  null === User not found
  *
- * 既知バグ #1: 呼び出し側 (PATCH /users/:id) は null を 404 にせず 500 を返す。
- * FastAPI の crud が None を返し、router がそれをそのまま返して
- * response_model 検証で ResponseValidationError になっていたのの再現。
- * 404 に直すのは Phase 2。 */
+ * 既知バグ #1 修正済み: 以前は存在しないユーザーで 500 になっていた
+ * (FastAPI の crud が None を返し response_model 検証で落ちていたのの再現)。
+ * 今は呼び出し側が素直に 404 を返す。 */
 export async function updateUserName(
 	db: DomainDb,
-	userId: number,
+	userId: string,
 	username: string,
+	updatedAt: Date,
 ): Promise<UserRow | null> {
 	const [updated] = await db
 		.update(users)
-		.set({ username })
+		.set({ username, updatedAt })
 		.where(eq(users.userId, userId))
 		.returning();
 

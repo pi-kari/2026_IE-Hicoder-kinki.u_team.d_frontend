@@ -33,8 +33,10 @@ bun run dev                  # http://localhost:3000
 | `components/TabBar.tsx` | 下部タブバー。expo-router の `<Tabs>` の置き換え |
 | `components/PageHeader.tsx` | タイトル + 戻るボタン。ネストした `<Stack>` の置き換え |
 | `lib/api.ts` | UI 側の API 呼び出し。ベースは相対パスの `/api` |
-| `lib/schema.ts` | Drizzle スキーマ (`users` / `books_list` / `progress`) |
-| `lib/db.ts` | 接続プール (dev の HMR 対策で `globalThis` にキャッシュ) |
+| `lib/domain/**` | **業務ロジック**。DB ハンドルを引数に取る純関数。サーバでもブラウザでも動く |
+| `lib/schema.ts` | Drizzle スキーマ (`users` / `books_list` / `progress`)。主キーは uuid |
+| `lib/uuid.ts` | UUIDv7 生成。主キーはクライアントが作る |
+| `lib/server/db.ts` | 接続プール (dev の HMR 対策で `globalThis` にキャッシュ)。`server-only` |
 | `lib/http.ts` | エラー応答 (`{detail}` / 422 / 500 plain text) |
 | `lib/jst.ts` | JST の日境界計算 (Asia/Tokyo は固定 UTC+9) |
 | `lib/serialize.ts` | レスポンス整形。未知キーを strip して返す |
@@ -60,24 +62,54 @@ bun run dev                  # http://localhost:3000
 - **`app/tamagui.generated.css` はコミットする。** `app/layout.tsx` が静的 import
   するので、コミットしないとクリーンチェックアウトで `Module not found` になる。
 
-## 既知の問題
+## 主キーは UUIDv7・クライアント生成
 
-旧 FastAPI の挙動をそのまま再現しているため、以下は**意図的に残している**（別途修正予定）:
+3 テーブルの主キーはすべて `uuid` で、**値はクライアントが `lib/uuid.ts` の `uuidv7()` で作る**。
+スキーマに `.defaultRandom()` は**付けない**。
 
-- 本を最後まで読んでも `tree_ratio` は 99 止まりで木が最終段階にならない（`1e-8` 由来）
-- `book_pages` が 0 の本に進捗を記録すると 500
-- 存在しないユーザへの `PATCH /api/users/{id}` が 404 ではなく 500
-- 本の `status` は送っても無視され、常に `積読` になる
-- `GET .../progress` の `limit` は無視され、`offset>=1` だと 404
-- `components/ProgressTree.tsx` が表示する本の ID を `5` に固定している
+- サーバに採番させると、オフラインの端末は登録も書籍追加もできない
+  （`AuthGuard` は `user_session` が無ければ必ず `/register` に飛ばす）
+- 採番させた id はクライアントに伝わらないので、同期の再送が重複行を作る。
+  デフォルト無しなら NOT NULL 違反として即座に落ちる
+- **v4 (`crypto.randomUUID()`) ではなく v7** を使う。履歴は `orderBy(asc(progress_id))` で
+  並べており、ランダムな v4 はこの順序を壊す。v7 は先頭 48bit がミリ秒なので
+  「主キー昇順 = 作成順」が保たれる。同一ミリ秒内も連番で単調増加させている
 
-## 移植の経緯
+`ix_users_username`（unique）は**意図的に持たない**。2 端末が同じ名前でオフライン登録すると
+2 台目が同期で unique 違反になり、順序を保つ送信キューがそこで永久に詰まる。
+このアプリに username でのログインは無いので、この索引は何も買っていない。
 
-FastAPI からの移植は**バグごと逐語的に再現する**方針で行い、`scripts/parity.sh` で
-両者に同じリクエスト列を投げて差分ゼロを確認してある（35 ケース）。
-旧スタックが消えた今このスクリプトは実行できないが、移植内容の記録として残している。
+## 修正済みの既知バグ
+
+旧 FastAPI から**バグごと逐語的に再現**して移植したが、移植の正しさは
+`scripts/parity.sh` の 35 ケース差分ゼロで確認済みで、FastAPI も退役したため、
+再現をやめて修正した:
+
+| 内容 | 修正後 |
+|---|---|
+| 読了しても `tree_ratio` が 99 止まりで木が最終段階にならなかった（`1e-8` 由来） | `120/120` が 100 になり `tree_state: 3` に到達する。**`tree_3.png` が表示されるのはこれが初めて** |
+| `book_pages` が 0 の本に進捗を記録すると 500（比が約 100 億になり int4 を溢れていた） | 比 0 として 200 |
+| 存在しないユーザへの `PATCH /api/users/{id}` が 500 | 404 `{"detail":"User not found"}` |
+| 本の `status` が無視され常に `積読` | 保存される。UI にも状態選択を追加 |
+| `GET .../progress` の `limit` が無視され `offset>=1` で 404 | `progress` 行に正しく適用 |
+| `ProgressTree` が表示する本の ID を `5` に固定 | 一覧の最後の本を使う |
+
+`60/120` は 49 → **50**、`120/120` は 99 → **100** に変わっている。退行ではない。
+
+## 検証
+
+| | |
+|---|---|
+| `bun run test:unit` | `lib/domain/**` をインメモリ PGlite に対して検証。**Docker 不要**、数秒 |
+| `bun run api-spec` | HTTP 層（ステータス / 404・422 のボディ形 / シリアライズ）。空の DB を向けて実行 |
+| `bun run test` | Playwright。`build && start` してからブラウザで叩く |
+
+`scripts/api-spec.sh` はもともと FastAPI と Next.js の差分を見る `scripts/parity.sh` だった。
+移植が終わって比較相手が消え、主キーの UUID 化で契約も変わったので、
+35 ケースという資産を残したまま期待値を直接書く仕様テストに作り替えてある。
+
+移植時に効いた知見:
 
 - **500 は plain text**。Starlette が `Internal Server Error` をそのまま返すので JSON にしない。
 - **`sum()` は SQL 側で `::int` にキャストする**。pg は bigint を文字列で返すため。
-- **`Math.trunc`** を使う（Python の `int()` と同じ 0 方向切り捨て）。`1e-8` のガードごと
-  再現しており、`60/120` が 49、`120/120` が 99 になる癖も意図的にそのまま。
+- **`Math.trunc`** を使う（Python の `int()` と同じ 0 方向切り捨て）。

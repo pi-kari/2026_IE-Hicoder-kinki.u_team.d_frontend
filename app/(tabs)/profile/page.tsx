@@ -48,7 +48,8 @@ export default function ProfilePage() {
 					{books.slice(-3).map((book) => (
 						<Image
 							key={book.book_id}
-							src={`https://placehold.co/200x280/png?text=${book.book_id}`}
+							// book_id は 36 文字の uuid になったので、そのまま流すと画像内で潰れる
+							src={`https://placehold.co/200x280/png?text=${book.book_id.slice(0, 8)}`}
 							width={65}
 							height={90}
 							objectFit="cover"

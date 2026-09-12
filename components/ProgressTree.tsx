@@ -4,7 +4,8 @@ import { useAuth } from "context/AuthContext";
 import { getJson } from "lib/api";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { ResponseTreeStateSchema } from "schemas/openapi";
+import { BookResponseSchema, ResponseTreeStateSchema } from "schemas/openapi";
+import { z } from "zod";
 import tree1 from "../public/images/tree_1.png";
 import tree2 from "../public/images/tree_2.png";
 import tree3 from "../public/images/tree_3.png";
@@ -21,9 +22,17 @@ export function ProgressTree() {
 
 		const fetchProgress = async () => {
 			try {
-				const bookId = 5; // ここは適切な本のIDに置き換える必要があります
+				// 以前は bookId = 5 のハードコードだった (既知バグ #6)。
+				// 一覧の最後の本を使う。book_id は uuidv7 なので昇順 = 登録順。
+				const books = await getJson(
+					`/users/${userId}/books`,
+					z.array(BookResponseSchema),
+				);
+				const target = books.at(-1);
+				if (!target) return;
+
 				const response = await getJson(
-					`/users/${userId}/books/${bookId}/tree`,
+					`/users/${userId}/books/${target.book_id}/tree`,
 					ResponseTreeStateSchema,
 				);
 				setProgress(response.tree_state);

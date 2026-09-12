@@ -5,20 +5,25 @@ import type { DomainDb } from "./db";
 type BookRow = typeof books.$inferSelect;
 
 /** routers/items.py:return_book_list + crud.get_books
- *  NOTE: ユーザが存在しなくても 404 ではなく空配列。現行の挙動。 */
+ *  NOTE: ユーザが存在しなくても 404 ではなく空配列。現行の挙動。
+ *  並びは book_id 昇順 = uuidv7 なので作成順。 */
 export async function listBooks(
 	db: DomainDb,
-	userId: number,
+	userId: string,
 ): Promise<BookRow[]> {
-	return db.select().from(books).where(eq(books.userId, userId));
+	return db
+		.select()
+		.from(books)
+		.where(eq(books.userId, userId))
+		.orderBy(books.bookId);
 }
 
 /** routers/items.py:return_book + crud.get_book
  *  null === Book not found */
 export async function getBook(
 	db: DomainDb,
-	userId: number,
-	bookId: number,
+	userId: string,
+	bookId: string,
 ): Promise<BookRow | null> {
 	const [book] = await db
 		.select()
@@ -36,8 +41,14 @@ export async function getBook(
  * 呼び出し側が tx を渡した場合はネストして SAVEPOINT になる。 */
 export async function createBook(
 	db: DomainDb,
-	userId: number,
-	input: { bookTitle: string; bookPages: number },
+	userId: string,
+	input: {
+		bookId: string;
+		bookTitle: string;
+		status: string;
+		bookPages: number;
+		updatedAt: Date;
+	},
 ): Promise<BookRow | null> {
 	return db.transaction(async (tx) => {
 		const [user] = await tx
@@ -47,15 +58,17 @@ export async function createBook(
 			.limit(1);
 		if (!user) return null;
 
-		// 既知バグ #3 の再現: status は意図的に渡さない。DB 既定値の "積読" が入る。
-		// UI 側が文字列 "string" を送っているので、サーバだけ直すと全行が汚れる。
-		// UI に状態選択を足すのとセットで直す (Phase 2)。
+		// 既知バグ #3 修正済み: 以前は status を捨てて DB 既定値の "積読" にしていた。
+		// UI 側も文字列 "string" を送っていたので、両方まとめて直した。
 		const [book] = await tx
 			.insert(books)
 			.values({
+				bookId: input.bookId,
 				userId,
 				bookTitle: input.bookTitle,
+				status: input.status,
 				bookPages: input.bookPages,
+				updatedAt: input.updatedAt,
 			})
 			.returning();
 
@@ -70,18 +83,42 @@ export async function createBook(
 	});
 }
 
+/** users.number_of_books を books_list から数え直す。
+ *  pull で本が増えたときに呼ぶ。派生値なので同期せず再計算する。 */
+export async function recomputeUser(
+	db: DomainDb,
+	userId: string,
+): Promise<void> {
+	await db
+		.update(users)
+		.set({
+			numberOfBooks: sql`(select count(*)::int from ${books} where ${books.userId} = ${userId})`,
+		})
+		.where(eq(users.userId, userId));
+}
+
 /** routers/items.py:update_book + crud.update_book
  *  null === Book not found
- *  NOTE: 更新するのはタイトルとページ数だけ。status は無視する (既知バグ #3)。 */
+ *  既知バグ #3 修正済み: status も更新するようになった。 */
 export async function updateBook(
 	db: DomainDb,
-	userId: number,
-	bookId: number,
-	input: { bookTitle: string; bookPages: number },
+	userId: string,
+	bookId: string,
+	input: {
+		bookTitle: string;
+		status: string;
+		bookPages: number;
+		updatedAt: Date;
+	},
 ): Promise<BookRow | null> {
 	const [updated] = await db
 		.update(books)
-		.set({ bookTitle: input.bookTitle, bookPages: input.bookPages })
+		.set({
+			bookTitle: input.bookTitle,
+			status: input.status,
+			bookPages: input.bookPages,
+			updatedAt: input.updatedAt,
+		})
 		.where(and(eq(books.userId, userId), eq(books.bookId, bookId)))
 		.returning();
 

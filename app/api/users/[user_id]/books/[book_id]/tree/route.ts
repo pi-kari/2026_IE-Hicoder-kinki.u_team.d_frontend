@@ -1,5 +1,5 @@
 import { getTreeState } from "@/lib/domain/tree";
-import { bookNotFound, intParam, withErrorHandling } from "@/lib/http";
+import { bookNotFound, uuidParam, withErrorHandling } from "@/lib/http";
 import { toTreeStateResponse } from "@/lib/serialize";
 import { db } from "@/lib/server/db";
 
@@ -10,9 +10,9 @@ type Ctx = { params: Promise<{ user_id: string; book_id: string }> };
 // routers/progress.py:get_tree_state + crud.get_book_tree_state
 export const GET = withErrorHandling(async (_request: Request, ctx: Ctx) => {
 	const { user_id, book_id } = await ctx.params;
-	const userId = intParam("user_id", user_id);
+	const userId = uuidParam("user_id", user_id);
 	if (!userId.ok) return userId.response;
-	const bookId = intParam("book_id", book_id);
+	const bookId = uuidParam("book_id", book_id);
 	if (!bookId.ok) return bookId.response;
 
 	const tree = await getTreeState(db, userId.value, bookId.value);

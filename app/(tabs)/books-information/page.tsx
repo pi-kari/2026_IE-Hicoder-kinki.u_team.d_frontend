@@ -1,42 +1,40 @@
 "use client";
 
+import { Check } from "@tamagui/lucide-icons-2/icons/Check";
+import { ChevronDown } from "@tamagui/lucide-icons-2/icons/ChevronDown";
 import { Plus } from "@tamagui/lucide-icons-2/icons/Plus";
 import { PageHeader } from "components/PageHeader";
 import { useAuth } from "context/AuthContext";
-import { getItem, setItem } from "context/sessionStorage";
 import { sendJson } from "lib/api";
+import { uuidv7 } from "lib/uuid";
 import { useState } from "react";
 import { BookResponseSchema } from "schemas/openapi";
-import { Button, Card, H3, Input, XStack, YStack } from "tamagui";
+import { Button, Card, H3, Input, Select, XStack, YStack } from "tamagui";
+
+// 既知バグ #3 の UI 側。以前はここが固定文字列 "string" を送っており、
+// サーバ側もそれを捨てて DB 既定値の "積読" を入れていた。両方まとめて直した。
+const STATUSES = ["積読", "読書中", "読了"] as const;
 
 export default function BooksInformationPage() {
 	const [selectedBook, setSelectedBook] = useState<string>("");
 	const { userId } = useAuth();
 	const [book_pages, setBookPages] = useState<number | null>(null);
+	const [status, setStatus] = useState<string>(STATUSES[0]);
 
 	const submitProgress = async () => {
-		// サーバーへPUTリクエストを送信
-		// NOTE: status は API 側で無視され常に "積読" になる。サーバだけ直すと
-		// この "string" が全レコードを汚染するので、UI に状態選択を足すまで据え置く。
-		const response = await sendJson(
+		// book_id はクライアントで作る (uuidv7)。サーバに採番させると
+		// オフラインで本を登録できず、同期の再送も重複行を作る。
+		await sendJson(
 			"PUT",
 			`/users/${userId}/books`,
 			{
+				book_id: uuidv7(),
 				book_title: selectedBook,
-				status: "string",
+				status,
 				book_pages: book_pages,
 			},
 			BookResponseSchema,
 		);
-
-		const storedBookIds = await getItem("registered_book_ids");
-		const registeredBookIds: number[] = storedBookIds
-			? JSON.parse(storedBookIds)
-			: [];
-		if (!registeredBookIds.includes(response.book_id)) {
-			registeredBookIds.push(response.book_id);
-		}
-		await setItem("registered_book_ids", JSON.stringify(registeredBookIds));
 	};
 
 	return (
@@ -73,6 +71,30 @@ export default function BooksInformationPage() {
 								placeholder="ページ数を入力"
 								inputMode="numeric"
 							/>
+							<Select value={status} onValueChange={setStatus}>
+								<Select.Trigger
+									width={130}
+									iconAfter={ChevronDown}
+									rounded="$3"
+								>
+									<Select.Value placeholder="状態を選択" />
+								</Select.Trigger>
+
+								<Select.Content>
+									<Select.Viewport>
+										<Select.Group>
+											{STATUSES.map((s, index) => (
+												<Select.Item key={s} index={index} value={s}>
+													<Select.ItemText>{s}</Select.ItemText>
+													<Select.ItemIndicator>
+														<Check size={16} />
+													</Select.ItemIndicator>
+												</Select.Item>
+											))}
+										</Select.Group>
+									</Select.Viewport>
+								</Select.Content>
+							</Select>
 							<Button size="$5" onPress={submitProgress}>
 								登録
 							</Button>

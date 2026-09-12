@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { jstDayRange } from "../jst";
 import { books, progress } from "../schema";
 import type { DomainDb } from "./db";
@@ -15,46 +15,50 @@ export type ProgressHistory = {
 /** routers/progress.py:get_book_progress + crud.get_book_progress_history
  *  null === Book not found
  *
- * 既知バグ #2 の再現: limit/offset は本来 progress 行に効くべきだが、FastAPI では
- * Book 側のクエリに .offset(offset).limit(limit).first() として適用されている。
- * さらに SQLAlchemy の Query.first() は LIMIT 1 を「上書き」するので .limit(limit) は
- * SQL に一切届かない。実際に効くのは offset だけで、offset>=1 だと本が「見つからない」
- * ことになり 404 になる。limit は受け取るが使わない。(修正は Phase 2) */
+ * 既知バグ #2 修正済み: 以前は limit/offset が progress 行ではなく Book 側の
+ * クエリに掛かっており、offset>=1 だと本が「見つからない」ことになって 404、
+ * limit は SQLAlchemy の .first() に上書きされて一切効いていなかった。
+ * 今は素直に progress 行へ適用する。 */
 export async function getHistory(
 	db: DomainDb,
-	userId: number,
-	bookId: number,
-	opts: { offset: number },
+	userId: string,
+	bookId: string,
+	opts: { limit: number; offset: number },
 ): Promise<ProgressHistory | null> {
 	const [book] = await db
 		.select()
 		.from(books)
 		.where(and(eq(books.userId, userId), eq(books.bookId, bookId)))
-		.offset(opts.offset)
 		.limit(1);
 
 	if (!book) return null;
 
-	// FastAPI 側は db_book.progresses リレーション (book_id のみで結合) を使っており、
-	// user_id では絞っていない。order_by も無くヒープ順依存だったので、
-	// 決定的にするため progress_id 昇順を明示する。
+	// progress_id は uuidv7 なので昇順 = 作成順。
 	const history = await db
 		.select({ createdAt: progress.createdAt, progress: progress.progress })
 		.from(progress)
 		.where(eq(progress.bookId, bookId))
-		.orderBy(asc(progress.progressId));
+		.orderBy(asc(progress.progressId))
+		.limit(opts.limit)
+		.offset(opts.offset);
 
+	// total_progress は本の行にある派生値 (progress 行の合計) で、
+	// ページングとは独立。切り出した一覧の合計ではない。
 	return { totalProgress: book.totalProgress, history };
 }
 
 /** routers/progress.py:update_book_progress
  *   + crud.insert_book_progress / _update_tree_state
- *  null === Book not found */
+ *  null === Book not found
+ *
+ * progressId / createdAt は呼び出し側が渡す。
+ * 火曜にオフラインで記録して木曜に push した行が木曜の日付になると、
+ * lib/jst.ts が駆動する /today と /date/:d が壊れるため。 */
 export async function recordProgress(
 	db: DomainDb,
-	userId: number,
-	bookId: number,
-	pagesRead: number,
+	userId: string,
+	bookId: string,
+	input: { progressId: string; pagesRead: number; createdAt: Date },
 ): Promise<BookRow | null> {
 	return db.transaction(async (tx) => {
 		const [book] = await tx
@@ -64,9 +68,15 @@ export async function recordProgress(
 			.limit(1);
 		if (!book) return null;
 
-		await tx.insert(progress).values({ bookId, userId, progress: pagesRead });
+		await tx.insert(progress).values({
+			progressId: input.progressId,
+			bookId,
+			userId,
+			progress: input.pagesRead,
+			createdAt: input.createdAt,
+		});
 
-		return recomputeBook(tx, userId, bookId, book.bookPages);
+		return recomputeBook(tx, userId, bookId, book.bookPages, input.createdAt);
 	});
 }
 
@@ -75,11 +85,10 @@ export async function recordProgress(
  *  day は "YYYY-MM-DD" (JST の暦日)。 */
 export async function getProgressOnDay(
 	db: DomainDb,
-	userId: number,
-	bookId: number,
+	userId: string,
+	bookId: string,
 	day: string,
 ): Promise<number | null> {
-	// FastAPI 側と同じく、まず本の存在チェック
 	const [book] = await db
 		.select({ bookId: books.bookId })
 		.from(books)
@@ -102,4 +111,31 @@ export async function getProgressOnDay(
 		);
 
 	return total;
+}
+
+/** 直近に進捗を記録した本。無ければ null。
+ *  ProgressTree が「どの本の木を出すか」を決めるのに使う
+ *  (以前は bookId = 5 のハードコードだった / 既知バグ #6)。 */
+export async function latestActiveBookId(
+	db: DomainDb,
+	userId: string,
+): Promise<string | null> {
+	// progress_id は uuidv7 なので降順の先頭が最新の記録。
+	const [recent] = await db
+		.select({ bookId: progress.bookId })
+		.from(progress)
+		.where(eq(progress.userId, userId))
+		.orderBy(desc(progress.progressId))
+		.limit(1);
+	if (recent) return recent.bookId;
+
+	// まだ 1 度も記録が無ければ、最後に登録した本を使う。
+	const [newest] = await db
+		.select({ bookId: books.bookId })
+		.from(books)
+		.where(eq(books.userId, userId))
+		.orderBy(desc(books.bookId))
+		.limit(1);
+
+	return newest?.bookId ?? null;
 }

@@ -4,7 +4,6 @@ import { Check } from "@tamagui/lucide-icons-2/icons/Check";
 import { ChevronDown } from "@tamagui/lucide-icons-2/icons/ChevronDown";
 import { Toaster, toast } from "@tamagui/toast/v2";
 import { useAuth } from "context/AuthContext";
-import { getItem } from "context/sessionStorage";
 import { getJson, sendJson } from "lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -28,28 +27,17 @@ export default function RecordPage() {
 	const router = useRouter();
 	const { userId, isLoading } = useAuth();
 
-	// 本の一覧
-	const [books, setBooks] = useState<{ id: number; title: string }[]>([
-		{ id: 1, title: "apple" },
-		{ id: 2, title: "banana" },
-		{ id: 3, title: "cherry" },
-	]);
+	// 本の一覧。book_id は uuid なので string。
+	const [books, setBooks] = useState<{ id: string; title: string }[]>([]);
 
 	// 選択された本のIDと、入力されたページ数を保持するステートを追加
-	const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
+	const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
 	const [pagesRead, setPagesRead] = useState<string>("");
 
 	useEffect(() => {
 		if (isLoading || userId === null) {
 			return;
 		}
-
-		// 例としての初期データ
-		setBooks([
-			{ id: 1, title: "apple" },
-			{ id: 2, title: "banana" },
-			{ id: 3, title: "cherry" },
-		]);
 
 		const fetchBooks = async () => {
 			try {
@@ -62,21 +50,16 @@ export default function RecordPage() {
 					router.push("/books-information");
 				}
 
-				setBooks(
-					response.map((book) => ({
-						id: book.book_id,
-						title: book.book_title,
-					})),
-				);
+				const list = response.map((book) => ({
+					id: book.book_id,
+					title: book.book_title,
+				}));
+				setBooks(list);
 
-				const storedBookIds = await getItem("registered_book_ids");
-				const registeredBookIds: number[] = storedBookIds
-					? JSON.parse(storedBookIds)
-					: [];
-				const lastRegisteredBookId = registeredBookIds.at(-1);
-				if (lastRegisteredBookId !== undefined) {
-					setSelectedBookId(lastRegisteredBookId);
-				}
+				// 以前は localStorage の registered_book_ids から最後の本を復元していたが、
+				// book_id が uuidv7 (時刻順) になったので一覧の末尾がそのまま
+				// 「最後に登録した本」になる。二重管理をやめて実データだけを見る。
+				setSelectedBookId(list.at(-1)?.id ?? null);
 			} catch (error) {
 				console.error("Failed to fetch books:", error);
 			}
@@ -126,8 +109,8 @@ export default function RecordPage() {
 					<H3>進捗を記録</H3>
 					<XStack items="center" gap="$2" width="100%" pt="$3">
 						<Select
-							value={selectedBookId === null ? "" : String(selectedBookId)}
-							onValueChange={(val: string) => setSelectedBookId(Number(val))}
+							value={selectedBookId ?? ""}
+							onValueChange={setSelectedBookId}
 						>
 							<Select.Trigger width={160} iconAfter={ChevronDown} rounded="$3">
 								<Select.Value placeholder="書籍を選択" />
@@ -137,11 +120,7 @@ export default function RecordPage() {
 								<Select.Viewport>
 									<Select.Group>
 										{books.map((book, index) => (
-											<Select.Item
-												key={book.id}
-												index={index}
-												value={book.id.toString()}
-											>
+											<Select.Item key={book.id} index={index} value={book.id}>
 												<Select.ItemText>{book.title}</Select.ItemText>
 												<Select.ItemIndicator>
 													<Check size={16} />

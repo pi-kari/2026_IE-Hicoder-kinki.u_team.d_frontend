@@ -41,3 +41,46 @@ test("未ログインだと /register に飛ばされ、登録するとタブ画
 
 	expect(errors.filter((e) => e.includes("Missing theme"))).toHaveLength(0);
 });
+
+/**
+ * 木が最終段階 (tree_state 3 / tree_3.png) まで育つことを確認する。
+ *
+ * これは今まで一度も到達できなかった状態だった。`tree_ratio` の計算に
+ * ゼロ除算ガードの `book_pages + 1e-8` が入っていたため、読了しても 99 にしかならず
+ * `tree_3.png` は死んだアセットだった。ガードを外したので初めて表示される。
+ *
+ * 画面の見た目そのものが「本を読むと木が育つ」というこのアプリの中心なので、
+ * API のレスポンスではなく実際に描画された画像で確認する。
+ */
+test("本を読了すると木が最終段階の画像になる", async ({ page }) => {
+	await page.goto("/register");
+	await page.getByPlaceholder("ユーザー名").fill(`tree-${Date.now()}`);
+	await page.getByText("登録して始める").click();
+	await page.waitForURL("**/record");
+
+	// 本を 1 冊登録する (100 ページ)
+	await page.goto("/books-information");
+	await page.getByPlaceholder("本のタイトルを入力").fill("読了する本");
+	await page.getByPlaceholder("ページ数を入力").fill("100");
+	await page.getByRole("button", { name: "登録", exact: true }).click();
+
+	// 100 ページ読んだことにする。
+	// 本は 1 冊なので、一覧を取った時点で自動で選択されている
+	// (book_id が uuidv7 = 時刻順なので「末尾 = 最後に登録した本」)。
+	await page.goto("/record");
+	await expect(page.getByRole("combobox")).toHaveText("読了する本");
+	await page.getByPlaceholder("今回読んだページ数を入力").fill("100");
+	await page.getByRole("button", { name: "登録", exact: true }).click();
+	await expect(page.getByText(/進捗を登録しました/)).toBeVisible();
+
+	// ホームの木が最終段階になる
+	await page.goto("/");
+	const tree = page.getByRole("img", { name: /成長段階/ });
+	await expect(tree).toBeVisible();
+	await expect(tree).toHaveAttribute("alt", "成長段階 3 の木");
+	// next/image 経由なので幅は要求値に依存する。実際に画素が来ていることだけ見る。
+	// 属性が付いた直後はまだデコードが終わっていないので poll する。
+	await expect
+		.poll(() => tree.evaluate((el: HTMLImageElement) => el.naturalWidth))
+		.toBeGreaterThan(0);
+});
