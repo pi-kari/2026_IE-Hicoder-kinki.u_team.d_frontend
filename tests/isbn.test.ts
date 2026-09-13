@@ -169,3 +169,71 @@ test("オフラインでは案内を出し、手入力での登録は続けら�
 
 	await context.close();
 });
+
+const ISBN2 = "9784297127473";
+
+test("同じ ISBN の本は二重に登録できない", async ({ browser }) => {
+	const context = await browser.newContext({ serviceWorkers: "block" });
+	// ISBN ごとに別の書誌を返す
+	await context.route("**/api/isbn/**", (route) => {
+		const isbn = route.request().url().split("/").pop() ?? "";
+		route.fulfill({
+			json:
+				isbn === ISBN2
+					? { ...META, isbn: ISBN2, title: "TypeScript入門", pages: 411 }
+					: META,
+		});
+	});
+	const page = await context.newPage();
+
+	await register(page);
+
+	const fetchButton = page.getByRole("button", { name: "取得" });
+	const addByIsbn = async (isbn: string, title: string) => {
+		await page.goto("/books-information");
+		await page.getByPlaceholder("ISBN を入力").fill(isbn);
+		await expect(fetchButton).toBeEnabled({ timeout: 30_000 });
+		await fetchButton.click();
+		await expect(page.getByPlaceholder("本のタイトルを入力")).toHaveValue(
+			title,
+		);
+		await page.getByRole("button", { name: "登録", exact: true }).click();
+		await page.waitForURL("**/record");
+	};
+
+	// 2 冊登録する。**重複する方を末尾にしない**のが肝心で、
+	// 末尾の本を既定で選ぶ挙動だと導線が別の本に着いてしまう。
+	await addByIsbn(ISBN, "リーダブルコード");
+	await addByIsbn(ISBN2, "TypeScript入門");
+
+	// 1 冊目と同じ ISBN をもう一度読み取る
+	await page.goto("/books-information");
+	await page.getByPlaceholder("ISBN を入力").fill(ISBN);
+	await expect(fetchButton).toBeEnabled({ timeout: 30_000 });
+	await fetchButton.click();
+
+	// 登録ボタンを押す前に気づかせる
+	await expect(page.locator("#duplicate-notice")).toContainText(
+		"「リーダブルコード」は登録済みです",
+	);
+	await expect(
+		page.getByRole("button", { name: "登録", exact: true }),
+	).toBeDisabled();
+
+	// 行き止まりにせず、記録画面への導線を出す。
+	// **その本が選ばれていること**まで見る。末尾の本を選ぶ既定のままだと
+	// 別の本の画面に着いてしまう。
+	await page.getByRole("button", { name: "この本の進捗を記録する" }).click();
+	await page.waitForURL("**/record");
+	await expect(page.getByRole("combobox")).toHaveText("リーダブルコード", {
+		timeout: 30_000,
+	});
+
+	// 本棚は 1 冊のまま
+	await page.goto("/books");
+	await expect(page.getByText("リーダブルコード")).toHaveCount(1, {
+		timeout: 30_000,
+	});
+
+	await context.close();
+});

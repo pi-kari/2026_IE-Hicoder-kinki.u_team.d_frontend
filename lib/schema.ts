@@ -66,9 +66,16 @@ export const books = pgTable(
 			.notNull()
 			.defaultNow(),
 	},
+	// NOTE: (user_id, isbn) の unique 索引は意図的に持たない。
+	// 2 端末が同じ本をオフラインで登録すると 2 台目の book.create が push で
+	// 一意制約違反になり、順序を保つ outbox ではそれ以降の全 op が永久に詰まる
+	// (上の ix_users_username と同じ話)。重複は登録時に UI で気づかせる
+	// (lib/domain/books.ts の getBookByIsbn)。
 	(t) => [
 		index("ix_books_list_user_id").on(t.userId),
 		index("ix_books_list_book_title").on(t.bookTitle),
+		// 重複検知は登録のたびに引くので、索引が無いと冊数に比例して遅くなる。
+		index("ix_books_list_isbn").on(t.userId, t.isbn),
 	],
 );
 

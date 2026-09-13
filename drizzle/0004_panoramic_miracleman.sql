@@ -1,0 +1,1 @@
+CREATE INDEX "ix_books_list_isbn" ON "books_list" USING btree ("user_id","isbn");

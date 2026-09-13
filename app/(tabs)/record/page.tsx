@@ -5,9 +5,10 @@ import { ChevronDown } from "@tamagui/lucide-icons-2/icons/ChevronDown";
 import { Toaster, toast } from "@tamagui/toast/v2";
 import { useAuth } from "context/AuthContext";
 import { useLocalDb } from "context/LocalDbContext";
+import { takeRecordTarget } from "context/recordTarget";
 import { listBooks, recordProgress } from "lib/local/repo";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	Button,
 	Card,
@@ -34,10 +35,20 @@ export default function RecordPage() {
 	// 「そのとき読み終わったページ番号」。読んだページ数ではない。
 	const [pageReached, setPageReached] = useState<string>("");
 
+	// **初期選択は 1 マウントにつき 1 回だけ。** この effect は依存が落ち着くまでに
+	// 複数回走りうる。2 回目以降も選び直すと、「この本の進捗を記録する」で
+	// 指定された本や、利用者が手で選び直した本を末尾の本で上書きしてしまう。
+	// takeRecordTarget は一度きりなので、2 回目は指定が空になる点でも危ない。
+	const picked = useRef(false);
+
 	useEffect(() => {
 		if (isLoading || userId === null || !ready) {
 			return;
 		}
+
+		// 「この本の進捗を記録する」で飛んできたときに選ぶ本。
+		// await を挟む前に取り出しておく (取り出しは一度きり)。
+		const requested = takeRecordTarget();
 
 		const fetchBooks = async () => {
 			try {
@@ -54,10 +65,19 @@ export default function RecordPage() {
 				}));
 				setBooks(list);
 
+				// 指定があってその本が実在すればそれを選ぶ。無ければ既定に戻す。
+				//
 				// 以前は localStorage の registered_book_ids から最後の本を復元していたが、
 				// book_id が uuidv7 (時刻順) になったので一覧の末尾がそのまま
 				// 「最後に登録した本」になる。二重管理をやめて実データだけを見る。
-				setSelectedBookId(list.at(-1)?.id ?? null);
+				if (!picked.current) {
+					picked.current = true;
+					const target =
+						requested && list.some((b) => b.id === requested)
+							? requested
+							: null;
+					setSelectedBookId(target ?? list.at(-1)?.id ?? null);
+				}
 			} catch (error) {
 				console.error("Failed to fetch books:", error);
 			}

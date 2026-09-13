@@ -1,5 +1,5 @@
 // scripts/gen-migrations.ts が生成。手で編集しない。
-// 元ファイル: drizzle/0000_equal_thena.sql, drizzle/0001_fantastic_dreaming_celestial.sql, drizzle/0002_puzzling_wrecker.sql, drizzle/0003_progress_to_page_reached.sql, lib/local/0000_local.sql, lib/local/0001_local.sql, lib/local/0002_local.sql
+// 元ファイル: drizzle/0000_equal_thena.sql, drizzle/0001_fantastic_dreaming_celestial.sql, drizzle/0002_puzzling_wrecker.sql, drizzle/0003_progress_to_page_reached.sql, drizzle/0004_panoramic_miracleman.sql, lib/local/0000_local.sql, lib/local/0001_local.sql, lib/local/0002_local.sql
 export const MIGRATION_SQL: { tag: string; sql: string }[] = [
 	{
 		tag: "0000_equal_thena",
@@ -98,6 +98,10 @@ SET progress = c.position
 FROM cumulative AS c
 WHERE p.progress_id = c.progress_id;
 `,
+	},
+	{
+		tag: "0004_panoramic_miracleman",
+		sql: `CREATE INDEX "ix_books_list_isbn" ON "books_list" USING btree ("user_id","isbn");`,
 	},
 	{
 		tag: "local_0000",

@@ -29,6 +29,13 @@
       "when": 1789263501973,
       "tag": "0003_progress_to_page_reached",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789267734511,
+      "tag": "0004_panoramic_miracleman",
+      "breakpoints": true
     }
   ]
 }

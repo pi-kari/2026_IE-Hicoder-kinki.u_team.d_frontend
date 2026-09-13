@@ -7,8 +7,9 @@ import { BarcodeScanner } from "components/BarcodeScanner";
 import { PageHeader } from "components/PageHeader";
 import { useAuth } from "context/AuthContext";
 import { useLocalDb } from "context/LocalDbContext";
+import { setRecordTarget } from "context/recordTarget";
 import { lookupIsbn } from "lib/local/isbn";
-import { createBook } from "lib/local/repo";
+import { createBook, DuplicateIsbnError, findBookByIsbn } from "lib/local/repo";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import {
@@ -44,6 +45,11 @@ export default function BooksInformationPage() {
 	const [scanning, setScanning] = useState(false);
 	const [looking, setLooking] = useState(false);
 	const [notice, setNotice] = useState<string | null>(null);
+	// 同じ ISBN の本が既に本棚にあるとき。読み取った時点で気づかせる。
+	const [duplicate, setDuplicate] = useState<{
+		bookId: string;
+		title: string;
+	} | null>(null);
 
 	/**
 	 * スキャンと手入力の合流点。**経路を 1 本にしておく**ことで、
@@ -56,6 +62,7 @@ export default function BooksInformationPage() {
 			setLooking(true);
 			setError(null);
 			setNotice(null);
+			setDuplicate(null);
 
 			try {
 				const found = await lookupIsbn(userId, raw);
@@ -73,6 +80,20 @@ export default function BooksInformationPage() {
 				// 書誌が引けなかった場合も ISBN だけは控えて登録に載せる。
 				setIsbn(found.isbn);
 				setIsbnInput(found.isbn);
+
+				// **同じ本を二重に登録させない。** 書誌が引けたかどうかに関係なく、
+				// ISBN が確定した時点で本棚を見る。登録ボタンを押してから
+				// 弾くより、ここで気づかせた方が早い。
+				const already = await findBookByIsbn(userId, found.isbn);
+				if (already) {
+					setDuplicate({
+						bookId: already.book_id,
+						title: already.book_title,
+					});
+					setSelectedBook(already.book_title);
+					setBookPages(already.book_pages);
+					return;
+				}
 
 				switch (found.kind) {
 					case "ok":
@@ -113,6 +134,10 @@ export default function BooksInformationPage() {
 
 	const submitProgress = async () => {
 		if (!userId || !ready) return;
+		if (duplicate) {
+			setError(`「${duplicate.title}」は登録済みです`);
+			return;
+		}
 		if (!selectedBook.trim() || book_pages === null) {
 			setError("タイトルとページ数を入力してください");
 			return;
@@ -138,6 +163,14 @@ export default function BooksInformationPage() {
 		} catch (e) {
 			// HTTP を経由しなくなったので、失敗はステータスではなく例外で来る。
 			console.error(e);
+			if (e instanceof DuplicateIsbnError) {
+				setDuplicate({
+					bookId: e.existing.bookId,
+					title: e.existing.bookTitle,
+				});
+				setError(`「${e.existing.bookTitle}」は登録済みです`);
+				return;
+			}
 			setError("登録に失敗しました");
 		}
 	};
@@ -272,6 +305,26 @@ export default function BooksInformationPage() {
 							</YStack>
 						</XStack>
 
+						{duplicate ? (
+							// 行き止まりにしない。同じ本を読み進めたくてスキャンした
+							// 可能性が高いので、記録画面へ送る導線を出す。
+							<YStack id="duplicate-notice" gap="$2">
+								<Paragraph color="$orange10">
+									「{duplicate.title}」は登録済みです。
+								</Paragraph>
+								<Button
+									size="$4"
+									// 末尾の本ではなく、重複したその本を選ばせる。
+									// クエリは /record で落ちるので sessionStorage で渡す。
+									onPress={() => {
+										setRecordTarget(duplicate.bookId);
+										router.push("/record");
+									}}
+								>
+									この本の進捗を記録する
+								</Button>
+							</YStack>
+						) : null}
 						{notice ? (
 							<Paragraph id="isbn-notice" color="$orange10">
 								{notice}
@@ -282,8 +335,8 @@ export default function BooksInformationPage() {
 						<Button
 							size="$5"
 							width="100%"
-							disabled={!ready}
-							opacity={ready ? 1 : 0.6}
+							disabled={!ready || duplicate !== null}
+							opacity={ready && duplicate === null ? 1 : 0.6}
 							onPress={submitProgress}
 						>
 							登録
