@@ -16,6 +16,7 @@ import {
 	Card,
 	H3,
 	Input,
+	Label,
 	Paragraph,
 	Select,
 	Spinner,
@@ -136,104 +137,131 @@ export default function BooksInformationPage() {
 	return (
 		<YStack flex={1} bg="$background">
 			<PageHeader title="書籍情報を登録" />
-			<YStack flex={1} items="center" gap="$6" px="$5" pt="$6">
+			<YStack flex={1} items="center" gap="$6" px="$4" pt="$6">
 				<Card
 					width="100%"
-					maxWidth={500}
+					maxWidth={560}
 					size="$4"
 					borderWidth={1}
 					borderColor="$borderColor"
 				>
-					<Card.Header p="$4" gap="$1">
+					{/* 以前は 1 行の XStack に 4 つ詰めていて、入力欄が狭く文字が
+					    読めなかった。縦に積んで 1 つずつ全幅にしている。 */}
+					<YStack p="$4" gap="$4">
 						<H3>書籍情報を登録</H3>
 
-						{/* ISBN の行。バーコードで読むか、手で打つ。 */}
-						<XStack items="center" gap="$2" width="100%" pt="$3">
+						<YStack gap="$2">
+							<Label htmlFor="isbn" size="$4">
+								ISBN
+							</Label>
+							{/* バーコードで読むか、手で打つ。狭い画面では折り返す。 */}
+							<XStack gap="$2" width="100%" flexWrap="wrap">
+								<Input
+									id="isbn"
+									value={isbnInput}
+									onChangeText={setIsbnInput}
+									theme="surface1"
+									flex={1}
+									minW={180}
+									size="$5"
+									placeholder="ISBN を入力"
+									inputMode="numeric"
+									onSubmitEditing={() => void applyIsbn(isbnInput)}
+								/>
+								<Button
+									size="$5"
+									disabled={!ready || looking || isbnInput.trim() === ""}
+									opacity={
+										ready && !looking && isbnInput.trim() !== "" ? 1 : 0.6
+									}
+									onPress={() => void applyIsbn(isbnInput)}
+								>
+									{looking ? <Spinner /> : "取得"}
+								</Button>
+							</XStack>
 							<Button
 								icon={ScanBarcode}
 								iconSize="$4"
 								size="$5"
+								width="100%"
 								disabled={!ready || looking}
 								opacity={ready && !looking ? 1 : 0.6}
 								onPress={() => setScanning(true)}
 							>
-								バーコード
+								バーコードで読み取る
 							</Button>
-							<Input
-								value={isbnInput}
-								onChangeText={setIsbnInput}
-								theme="surface1"
-								flex={1}
-								size="$5"
-								placeholder="ISBN を入力"
-								inputMode="numeric"
-								onSubmitEditing={() => void applyIsbn(isbnInput)}
-							/>
-							<Button
-								size="$5"
-								disabled={!ready || looking || isbnInput.trim() === ""}
-								opacity={ready && !looking && isbnInput.trim() !== "" ? 1 : 0.6}
-								onPress={() => void applyIsbn(isbnInput)}
-							>
-								{looking ? <Spinner /> : "取得"}
-							</Button>
-						</XStack>
+						</YStack>
 
-						{/* 書名・ページ数・状態。ISBN から自動入力されるが、手で直せる。 */}
-						<XStack items="center" gap="$2" width="100%" pt="$3">
+						<YStack gap="$2">
+							<Label htmlFor="book-title" size="$4">
+								タイトル
+							</Label>
 							<Input
+								id="book-title"
 								value={selectedBook}
 								onChangeText={setSelectedBook}
 								theme="surface1"
-								flex={1}
+								width="100%"
 								size="$5"
 								placeholder="本のタイトルを入力"
 							/>
-							<Input
-								value={book_pages !== null ? book_pages.toString() : ""}
-								// 空文字を Number() に通すと 0 になり、null チェックが
-								// 素通りしてページ数 0 の本が作れてしまう。
-								onChangeText={(text) =>
-									setBookPages(text.trim() === "" ? null : Number(text))
-								}
-								theme="surface1"
-								flex={1}
-								size="$5"
-								placeholder="ページ数を入力"
-								inputMode="numeric"
-							/>
-							<Select value={status} onValueChange={setStatus}>
-								<Select.Trigger
-									width={130}
-									iconAfter={ChevronDown}
-									rounded="$3"
-								>
-									<Select.Value placeholder="状態を選択" />
-								</Select.Trigger>
+						</YStack>
 
-								<Select.Content>
-									<Select.Viewport>
-										<Select.Group>
-											{STATUSES.map((s, index) => (
-												<Select.Item key={s} index={index} value={s}>
-													<Select.ItemText>{s}</Select.ItemText>
-													<Select.ItemIndicator>
-														<Check size={16} />
-													</Select.ItemIndicator>
-												</Select.Item>
-											))}
-										</Select.Group>
-									</Select.Viewport>
-								</Select.Content>
-							</Select>
-							<Button
-								size="$5"
-								disabled={!ready}
-								opacity={ready ? 1 : 0.6}
-								onPress={submitProgress}
-							>
-								登録
-							</Button>
+						<XStack gap="$3" width="100%" flexWrap="wrap">
+							<YStack gap="$2" flex={1} minW={140}>
+								<Label htmlFor="book-pages" size="$4">
+									ページ数
+								</Label>
+								<Input
+									id="book-pages"
+									value={book_pages !== null ? book_pages.toString() : ""}
+									// 空文字を Number() に通すと 0 になり、null チェックが
+									// 素通りしてページ数 0 の本が作れてしまう。
+									onChangeText={(text) =>
+										setBookPages(text.trim() === "" ? null : Number(text))
+									}
+									theme="surface1"
+									width="100%"
+									size="$5"
+									placeholder="ページ数を入力"
+									inputMode="numeric"
+								/>
+							</YStack>
+
+							<YStack gap="$2" flex={1} minW={140}>
+								<Label htmlFor="book-status" size="$4">
+									状態
+								</Label>
+								<Select
+									id="book-status"
+									value={status}
+									onValueChange={setStatus}
+								>
+									<Select.Trigger
+										width="100%"
+										size="$5"
+										iconAfter={ChevronDown}
+										rounded="$3"
+									>
+										<Select.Value placeholder="状態を選択" />
+									</Select.Trigger>
+
+									<Select.Content>
+										<Select.Viewport>
+											<Select.Group>
+												{STATUSES.map((s, index) => (
+													<Select.Item key={s} index={index} value={s}>
+														<Select.ItemText>{s}</Select.ItemText>
+														<Select.ItemIndicator>
+															<Check size={16} />
+														</Select.ItemIndicator>
+													</Select.Item>
+												))}
+											</Select.Group>
+										</Select.Viewport>
+									</Select.Content>
+								</Select>
+							</YStack>
 						</XStack>
 
 						{notice ? (
@@ -242,7 +270,17 @@ export default function BooksInformationPage() {
 							</Paragraph>
 						) : null}
 						{error ? <Paragraph color="$red10">{error}</Paragraph> : null}
-					</Card.Header>
+
+						<Button
+							size="$5"
+							width="100%"
+							disabled={!ready}
+							opacity={ready ? 1 : 0.6}
+							onPress={submitProgress}
+						>
+							登録
+						</Button>
+					</YStack>
 				</Card>
 			</YStack>
 
