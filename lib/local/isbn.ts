@@ -12,19 +12,27 @@ import { ensureSessionFor } from "./sync";
  * 呼び出し側が案内を出し分けられるようにしている。
  */
 
+/**
+ * `invalid` 以外は必ず正規化済みの `isbn` を持つ。
+ *
+ * **呼び出し側は生の入力を保存してはいけない。** ISBN-10 のハイフン付き
+ * ("4-10-101001-3") を手入力されたとき、そのまま保存すると 10 桁のままになり、
+ * book_covers の突き合わせも後の再取得も一致しなくなる。
+ * 書誌が引けなくても ISBN だけは控えておけるように、失敗側にも持たせている。
+ */
 export type IsbnLookup =
 	/** 引けた。pages は取れないことがある (版によって dc:extent が無い)。 */
-	| { kind: "ok"; meta: BookMeta }
-	/** ISBN として読めない値。 */
+	| { kind: "ok"; isbn: string; meta: BookMeta }
+	/** ISBN として読めない値。正規化できていないので isbn は無い。 */
 	| { kind: "invalid" }
 	/** ISBN は正しいが NDL にも openBD にも無い。 */
-	| { kind: "not-found" }
+	| { kind: "not-found"; isbn: string }
 	/** セッションを張れなかった。オフラインとは原因が違うので分ける。 */
-	| { kind: "unauthorized" }
+	| { kind: "unauthorized"; isbn: string }
 	/** ネットワークに出られない。 */
-	| { kind: "offline" }
+	| { kind: "offline"; isbn: string }
 	/** サーバ側で落ちた。 */
-	| { kind: "failed" };
+	| { kind: "failed"; isbn: string };
 
 export async function lookupIsbn(
 	userId: string,
@@ -45,19 +53,20 @@ export async function lookupIsbn(
 	try {
 		res = await fetch(`/api/isbn/${isbn}`);
 	} catch {
-		return { kind: "offline" };
+		return { kind: "offline", isbn };
 	}
 
-	if (res.status === 404) return { kind: "not-found" };
-	if (res.status === 401 || res.status === 403) return { kind: "unauthorized" };
+	if (res.status === 404) return { kind: "not-found", isbn };
+	if (res.status === 401 || res.status === 403)
+		return { kind: "unauthorized", isbn };
 	if (res.status === 422) return { kind: "invalid" };
-	if (!res.ok) return { kind: "failed" };
+	if (!res.ok) return { kind: "failed", isbn };
 
 	let meta: BookMeta;
 	try {
 		meta = (await res.json()) as BookMeta;
 	} catch {
-		return { kind: "failed" };
+		return { kind: "failed", isbn };
 	}
 
 	// 表紙は端末内に置く。同期はしない (ISBN があれば引き直せる)。
@@ -70,5 +79,5 @@ export async function lookupIsbn(
 		}
 	}
 
-	return { kind: "ok", meta };
+	return { kind: "ok", isbn, meta };
 }

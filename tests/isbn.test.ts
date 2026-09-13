@@ -103,7 +103,9 @@ test("ページ数が取れない本は書名だけ入り、手で補える", as
 	await context.close();
 });
 
-test("見つからない ISBN でも手入力で登録できる", async ({ browser }) => {
+test("見つからない ISBN でも手入力で登録でき、ISBN は 13 桁に正規化される", async ({
+	browser,
+}) => {
 	const context = await browser.newContext({ serviceWorkers: "block" });
 	await context.route("**/api/isbn/**", (route) =>
 		route.fulfill({ status: 404, json: { detail: "Book not found" } }),
@@ -114,11 +116,17 @@ test("見つからない ISBN でも手入力で登録できる", async ({ brows
 	await page.goto("/books-information");
 
 	const fetchButton = page.getByRole("button", { name: "取得" });
-	await page.getByPlaceholder("ISBN を入力").fill(ISBN);
+	// ISBN-10 のハイフン付きで入れる。ここで生の入力を保存してしまうと
+	// 10 桁のまま残り、表紙の突き合わせも後の再取得も一致しなくなる。
+	await page.getByPlaceholder("ISBN を入力").fill("4-10-101001-3");
 	await expect(fetchButton).toBeEnabled({ timeout: 30_000 });
 	await fetchButton.click();
 
 	await expect(page.locator("#isbn-notice")).toContainText("見つかりません");
+	// 書誌が引けなくても、控える ISBN は正規化済みであること
+	await expect(page.getByPlaceholder("ISBN を入力")).toHaveValue(
+		"9784101010014",
+	);
 
 	// 案内が出るだけで、手入力の道は塞がれていない
 	await page.getByPlaceholder("本のタイトルを入力").fill("手で入れた本");

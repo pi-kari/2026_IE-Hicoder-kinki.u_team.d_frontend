@@ -59,10 +59,22 @@ export default function BooksInformationPage() {
 			try {
 				const found = await lookupIsbn(userId, raw);
 
+				if (found.kind === "invalid") {
+					setError(
+						"ISBN として読み取れません。本の裏の 978 から始まる 13 桁を入力してください。",
+					);
+					return;
+				}
+
+				// **生の入力ではなく正規化済みの値を持つ。** ISBN-10 のハイフン付きを
+				// 手入力されたとき、そのまま保存すると 10 桁のままになり、
+				// 表紙の突き合わせも後の再取得も一致しなくなる。
+				// 書誌が引けなかった場合も ISBN だけは控えて登録に載せる。
+				setIsbn(found.isbn);
+				setIsbnInput(found.isbn);
+
 				switch (found.kind) {
-					case "ok": {
-						setIsbn(found.meta.isbn);
-						setIsbnInput(found.meta.isbn);
+					case "ok":
 						setSelectedBook(found.meta.title);
 						if (found.meta.pages !== null) {
 							setBookPages(found.meta.pages);
@@ -73,15 +85,7 @@ export default function BooksInformationPage() {
 							);
 						}
 						break;
-					}
-					case "invalid":
-						setError(
-							"ISBN として読み取れません。本の裏の 978 から始まる 13 桁を入力してください。",
-						);
-						break;
 					case "not-found":
-						// ISBN 自体は控えておく。手入力の書名と一緒に登録できる。
-						setIsbn(raw.replace(/[\s-]/g, ""));
 						setNotice(
 							"この ISBN の書籍情報が見つかりませんでした。手入力で登録できます。",
 						);
