@@ -1,0 +1,81 @@
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:openSearch="http://a9.com/-/spec/opensearchrss/1.0/" xmlns:dcndl="http://ndl.go.jp/dcndl/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" version="2.0">
+  <channel>
+    <title>9784873115658 - 国立国会図書館サーチ OpenSearch</title>
+    <link>https://ios-v2-prod-eks-alb.ndlsearch.ndl.go.jp/api/opensearch?isbn=9784873115658</link>
+    <description>Search results for isbn=9784873115658</description>
+    <language>ja</language>
+    <openSearch:totalResults>1</openSearch:totalResults>
+    <openSearch:startIndex>1</openSearch:startIndex>
+    <openSearch:itemsPerPage>200</openSearch:itemsPerPage>
+    <item>
+      <title>リーダブルコード : より良いコードを書くためのシンプルで実践的なテクニック</title>
+      <link>https://ndlsearch.ndl.go.jp/books/R100000002-I023737539</link>
+      <description><![CDATA[<p>オライリー・ジャパン,2012,978-4-87311-565-8<p><ul><li>タイトル：リーダブルコード : より良いコードを書くためのシンプルで実践的なテクニック</li><li>タイトル（読み）：リーダブル コード : ヨリ ヨイ コード オ カク タメ ノ シンプル デ ジッセンテキ ナ テクニック</li><li>責任表示：Dustin Boswell, Trevor Foucher 著,角征典 訳</li><li>シリーズ名：THEORY/IN/PRACTICE</li><li>NDC(9)：007.64</li></ul>]]></description>
+      <author>Boswell, Dustin,Foucher, Trevor,角, 征典,Dustin Boswell, Trevor Foucher 著,角征典 訳</author>
+      <category>図書</category>
+      <category>紙</category>
+      <guid isPermaLink="true">https://ndlsearch.ndl.go.jp/books/R100000002-I023737539</guid>
+      <pubDate>Fri, 5 Oct 2012 19:56:52 +0900</pubDate>
+      <dc:title>リーダブルコード : より良いコードを書くためのシンプルで実践的なテクニック</dc:title>
+      <dcndl:titleTranscription>リーダブル コード : ヨリ ヨイ コード オ カク タメ ノ シンプル デ ジッセンテキ ナ テクニック</dcndl:titleTranscription>
+      <dc:creator>Boswell, Dustin</dc:creator>
+      <dc:creator>Foucher, Trevor</dc:creator>
+      <dc:creator>角, 征典</dc:creator>
+      <dcndl:creatorTranscription>カド, マサノリ</dcndl:creatorTranscription>
+      <dcndl:seriesTitle>THEORY/IN/PRACTICE</dcndl:seriesTitle>
+      <dc:publisher>オライリー・ジャパン</dc:publisher>
+      <dc:publisher>オーム社 (発売)</dc:publisher>
+      <dcndl:publicationPlace>JP</dcndl:publicationPlace>
+      <dc:date xsi:type="dcterms:W3CDTF">2012</dc:date>
+      <dcterms:issued>2012.6</dcterms:issued>
+      <dcndl:price>2400円</dcndl:price>
+      <dc:extent>237p</dc:extent>
+      <dc:identifier xsi:type="dcndl:ISBN">978-4-87311-565-8</dc:identifier>
+      <dc:identifier xsi:type="dcndl:NDLBibID">023737539</dc:identifier>
+      <dc:identifier xsi:type="dcndl:JPNO">22133671</dc:identifier>
+      <dc:identifier xsi:type="dcndl:TOHANMARCNO">32774026</dc:identifier>
+      <dc:subject>プログラミング (コンピュータ)</dc:subject>
+      <dc:subject xsi:type="dcndl:NDLC">M159</dc:subject>
+      <dc:subject xsi:type="dcndl:NDC9">007.64</dc:subject>
+      <dc:description>原タイトル: The Art of Readable Code</dc:description>
+      <dc:description>索引あり</dc:description>
+      <rdfs:seeAlso rdf:resource="https://www.library.city.sapporo.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1008000550844"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.fcs.ed.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1001102905729"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib.pref.ibaraki.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1001002061762"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib.city.saitama.jp/bookdetail?num=246960&amp;ctg=1"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.city.chiba.jp/licsxp-opac/WOpacTifSchCmpdDispAction.do"/>
+      <rdfs:seeAlso rdf:resource="https://catalog.library.metro.tokyo.lg.jp/winj/opac/switch-detail-iccap.do?bibid=1152096989"/>
+      <rdfs:seeAlso rdf:resource="https://www.klnet.pref.kanagawa.jp/winj/opac/switch-detail-iccap.do?bibid=1104379113"/>
+      <rdfs:seeAlso rdf:resource="https://opac.lib.city.yokohama.lg.jp/winj/opac/switch-detail-iccap.do?bibid=1112046627"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.city.kawasaki.jp/bookdetail?num=2300017&amp;ctg=1"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib.sagamihara.kanagawa.jp/TOSHOW/asp/WwShousaiKen.aspx?FCode=1651198"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.ishikawa.lg.jp/wo/opc_srh/srh_detail/1100000566405/"/>
+      <rdfs:seeAlso rdf:resource="https://www.library-archives.pref.fukui.lg.jp/wo/opc_srh/srh_detail/1105096181/"/>
+      <rdfs:seeAlso rdf:resource="http://www.library.pref.gifu.lg.jp/winj/opac/switch-detail-iccap.do?bibid=1102551007"/>
+      <rdfs:seeAlso rdf:resource="http://websv.aichi-pref-library.jp/winj/opac/switch-detail-iccap.do?bibid=1182568365"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.city.nagoya.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1001210033174"/>
+      <rdfs:seeAlso rdf:resource="http://opac1.library.pref.mie.lg.jp/winj/opac/switch-detail-iccap.do?bibid=1110166842"/>
+      <rdfs:seeAlso rdf:resource="https://www.shiga-pref-library.jp/wo/opc_srh/srh_detail/4120492/"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.osaka.jp/bib/?B12785866"/>
+      <rdfs:seeAlso rdf:resource="https://www.oml.city.osaka.lg.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1000012545695"/>
+      <rdfs:seeAlso rdf:resource="https://opacsvr01.library.pref.nara.jp/opac/volume/990301"/>
+      <rdfs:seeAlso rdf:resource="http://www.lib.wakayama-c.ed.jp/winj/opac/switch-detail-iccap.do?bibid=1102435864"/>
+      <rdfs:seeAlso rdf:resource="https://opac.libnet.pref.okayama.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1009811566147"/>
+      <rdfs:seeAlso rdf:resource="https://www2.hplibra.pref.hiroshima.jp/bib/?B11758425"/>
+      <rdfs:seeAlso rdf:resource="http://www.library.city.hiroshima.jp/winj/opac/switch-detail-iccap.do?bibid=1103417537"/>
+      <rdfs:seeAlso rdf:resource="https://library.pref.yamaguchi.lg.jp//wo/opc_srh/srh_detail/1000991768/"/>
+      <rdfs:seeAlso rdf:resource="https://opac.library.kochi.jp/winj/opac/switch-detail-iccap.do?bibid=1109462446"/>
+      <rdfs:seeAlso rdf:resource="http://www.lib.pref.fukuoka.jp/winj/opac/switch-detail-iccap.do?bibid=1109359264"/>
+      <rdfs:seeAlso rdf:resource="https://www2.tosyo-saga.jp/kentosyo2/opac/switch-detail-iccap.do?bibid=1101537864"/>
+      <rdfs:seeAlso rdf:resource="https://opac.miraionlibrary.jp/licsxp-opac/WOpacMsgNewListToTifTilDetailAction.do?tilcod=1000002060741"/>
+      <rdfs:seeAlso rdf:resource="https://library.pref.oita.jp/winj/opac/switch-detail-iccap.do?bibid=1102201186"/>
+      <rdfs:seeAlso rdf:resource="https://www.lib.pref.miyazaki.lg.jp/winj/opac/switch-detail-iccap.do?bibid=1101752701"/>
+      <rdfs:seeAlso rdf:resource="https://www2.library.pref.kagoshima.jp/kento/opac/switch-detail-iccap.do?bibid=1111161515"/>
+      <rdfs:seeAlso rdf:resource="https://www.library.pref.okinawa.jp/winj/opac/switch-detail-iccap.do?bibid=1100939855"/>
+      <rdfs:seeAlso rdf:resource="https://ndlsearch.ndl.go.jp/books/R100000002-I023737539"/>
+      <rdfs:seeAlso rdf:resource="https://ci.nii.ac.jp/ncid/BB09525219"/>
+      <rdfs:seeAlso rdf:resource="https://www.books.or.jp/book-details/9784873115658"/>
+      <dc:description> 2012</dc:description>
+    </item>
+  </channel>
+</rss>

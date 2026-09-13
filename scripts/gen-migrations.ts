@@ -25,7 +25,11 @@ const sources = [
 		path: `drizzle/${e.tag}.sql`,
 	})),
 	// ローカル専用テーブル。drizzle-kit には食わせないので手でここに足す。
+	// **既存ファイルに追記するのではなく、必ず新しい連番を足すこと。**
+	// 起動済みの端末は _local_migrations に tag を記録済みで、同じ tag の
+	// ファイルは二度と実行されない。
 	{ tag: "local_0000", path: "lib/local/0000_local.sql" },
+	{ tag: "local_0001", path: "lib/local/0001_local.sql" },
 ];
 
 const body = sources

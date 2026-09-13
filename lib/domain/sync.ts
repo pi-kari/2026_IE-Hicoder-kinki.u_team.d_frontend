@@ -33,6 +33,8 @@ export type BookInput = {
 	bookTitle: string;
 	status: string;
 	bookPages: number;
+	/** バーコード登録で入る ISBN-13。手入力の本と、この列より前の端末では無い。 */
+	isbn?: string | null;
 	updatedAt: Date;
 };
 
@@ -90,6 +92,7 @@ export async function upsertBook(
 			bookTitle: input.bookTitle,
 			status: input.status,
 			bookPages: input.bookPages,
+			isbn: input.isbn ?? null,
 			updatedAt: input.updatedAt,
 		})
 		.onConflictDoUpdate({
@@ -98,6 +101,10 @@ export async function upsertBook(
 				bookTitle: sql`excluded.book_title`,
 				status: sql`excluded.status`,
 				bookPages: sql`excluded.book_pages`,
+				// **coalesce にする。** isbn を消す UI は無いので、null で来たら
+				// 「知らない」の意味しかない。そのまま代入すると、この列より前の
+				// 端末が同じ本を後から送ったときに既知の ISBN を消してしまう。
+				isbn: sql`coalesce(excluded.isbn, ${books.isbn})`,
 				updatedAt: sql`excluded.updated_at`,
 			},
 			setWhere: sql`excluded.updated_at > ${books.updatedAt}`,

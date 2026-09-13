@@ -1,5 +1,4 @@
 import { beforeEach, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import * as schema from "../schema";
@@ -14,6 +13,7 @@ import {
 	upsertBook,
 	upsertUser,
 } from "./sync";
+import { SCHEMA_DDL } from "./test-ddl";
 import { getUser } from "./users";
 
 /**
@@ -23,10 +23,7 @@ import { getUser } from "./users";
  * 実際に行を往復させて確かめる。lib/domain/* は db ハンドルの純関数なので、
  * 同じコードが両側で動くことがそのまま検証になる。
  */
-const ddl = readFileSync(
-	`${import.meta.dir}/../../drizzle/0000_equal_thena.sql`,
-	"utf8",
-);
+const ddl = SCHEMA_DDL;
 
 async function makeDb(): Promise<{ db: DomainDb; client: PGlite }> {
 	const client = new PGlite();

@@ -44,6 +44,7 @@ export const GET = withErrorHandling(async (request: Request) => {
 			book_title: b.bookTitle,
 			status: b.status,
 			book_pages: b.bookPages,
+			isbn: b.isbn,
 			updated_at: b.updatedAt.toISOString(),
 		})),
 		progress: progress.map((p) => ({

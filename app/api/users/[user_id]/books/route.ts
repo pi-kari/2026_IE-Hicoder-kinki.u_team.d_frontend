@@ -50,6 +50,7 @@ export const PUT = withErrorHandling(async (request: Request, ctx: Ctx) => {
 		bookTitle: body.data.book_title,
 		status: body.data.status,
 		bookPages: body.data.book_pages,
+		isbn: body.data.isbn,
 		updatedAt: new Date(),
 	});
 	if (!created) return userNotFound();

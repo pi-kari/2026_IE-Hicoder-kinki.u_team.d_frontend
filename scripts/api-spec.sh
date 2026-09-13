@@ -70,6 +70,8 @@ echo
 
 echo "== 認証 (未ログインでは触れない) =="
 req unauth-books     GET  "/users/$(uuid)/books" 401
+# ISBN 照会は外部 (国会図書館) を叩くので、誰でも使えるプロキシにしない
+req unauth-isbn      GET  /isbn/9784873115658 401
 req unauth-pull      GET  /sync/pull 401
 req unauth-push      POST /sync/push 401 '{"ops":[]}'
 echo
@@ -108,14 +110,18 @@ echo "== books =="
 BA="$(uuid)"
 BB="$(uuid)"
 req create-book-a    PUT  "/users/$USER_ID/books" 200 \
-	"{\"book_id\":\"$BA\",\"book_title\":\"本A\",\"status\":\"読書中\",\"book_pages\":120}"
+	"{\"book_id\":\"$BA\",\"book_title\":\"本A\",\"status\":\"読書中\",\"book_pages\":120,\"isbn\":\"9784873115658\"}"
 expect create-book-a '.book_id' "\"$BA\""
+# バーコード登録で入る ISBN。UI が表紙を引くのに使うので応答にも載る
+expect create-book-a '.isbn' '"9784873115658"' 
 # 既知バグ #3 修正済み: 以前は status が捨てられて常に "積読" だった
 expect create-book-a '.status' '"読書中"'
 expect create-book-a '[.total_progress,.tree_ratio,.tree_state]' '[0,0,1]'
 
 req create-book-b    PUT  "/users/$USER_ID/books" 200 \
 	"{\"book_id\":\"$BB\",\"book_title\":\"本B\",\"status\":\"積読\",\"book_pages\":0}"
+# 手入力で登録した本には ISBN が無い
+expect create-book-b '.isbn' 'null' 
 
 req create-book-403  PUT  "/users/$(uuid)/books" 403 \
 	"{\"book_id\":\"$(uuid)\",\"book_title\":\"x\",\"status\":\"積読\",\"book_pages\":1}"
@@ -172,6 +178,24 @@ req prog-404         POST "/users/$USER_ID/books/$(uuid)/progress" 404 '{"pages_
 # 既知バグ #4 修正済み: book_pages = 0 は 500 ではなく比 0 として通る
 req zero-page-prog   POST "/users/$USER_ID/books/$BB/progress" 200 '{"pages_read":1}'
 expect zero-page-prog '[.total_progress,.tree_ratio,.tree_state]' '[1,0,1]'
+
+echo
+echo "== ISBN 照会 =="
+# 外部 (国会図書館) に出るので、ネットワークが無い環境では落ちる。
+req isbn-lookup      GET  /isbn/9784873115658 200
+expect isbn-lookup '.isbn' '"9784873115658"'
+# ページ数は進捗率の分母。ここが取れないと機能の意味が無い。
+expect isbn-lookup '.pages' '237'
+# ISBN-10 のハイフン付きでも 13 桁に正規化して受ける
+req isbn-isbn10      GET  /isbn/4-10-101001-3 200
+expect isbn-isbn10 '.isbn' '"9784101010014"'
+# 日本の書籍バーコードの下段 (192…) は本の ISBN ではないので弾く
+req isbn-lower-row   GET  /isbn/1920079009003 422
+expect isbn-lower-row '[.detail[].loc]' '[["path","isbn"]]'
+req isbn-garbage     GET  /isbn/12345 422
+# 形式は正しいが未登録
+req isbn-not-found   GET  /isbn/9789999999991 404
+expect isbn-not-found '.detail' '"Book not found"'
 
 echo
 echo "== validation (422) =="

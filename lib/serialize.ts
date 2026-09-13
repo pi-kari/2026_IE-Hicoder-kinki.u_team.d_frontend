@@ -34,6 +34,7 @@ export function toBookResponse(row: BookRow) {
 		status: row.status,
 		book_title: row.bookTitle,
 		book_pages: row.bookPages,
+		isbn: row.isbn,
 		total_progress: row.totalProgress,
 		tree_ratio: row.treeRatio,
 		tree_state: row.treeState,

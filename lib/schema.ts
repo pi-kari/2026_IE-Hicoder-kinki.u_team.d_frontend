@@ -51,6 +51,11 @@ export const books = pgTable(
 		bookTitle: varchar("book_title").notNull(),
 		status: varchar("status").notNull().default("積読"),
 		bookPages: integer("book_pages").notNull(),
+		// バーコードから登録したときの ISBN-13。手入力での登録もあるので nullable。
+		// 表紙は**ここには持たない**。数 KB〜数十 KB あり、同期ペイロードと
+		// サーバ DB を膨らませるだけなので、端末内の book_covers に置いて
+		// ISBN から引き直す (lib/local/covers.ts)。
+		isbn: varchar("isbn", { length: 13 }),
 		// 以下 3 つは progress 行からの派生値。**同期しない・再計算する。**
 		// 普通のカラムとして同期すると 2 端末でオフライン記録したとき片方が消える。
 		// 再計算は lib/domain/tree.ts の recomputeBook だけが行う。

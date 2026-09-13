@@ -1,12 +1,12 @@
 "use client";
 
 import { Plus } from "@tamagui/lucide-icons-2/icons/Plus";
+import { useBookCovers } from "components/useBookCovers";
 import { ProfileWidget } from "components/widgets/ProfileWidget";
 import { TreeWidget } from "components/widgets/TreeWidget";
 import { useAuth } from "context/AuthContext";
 import { useLocalDb } from "context/LocalDbContext";
 import { listBooks } from "lib/local/repo";
-import { bookCover } from "lib/placeholder";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { BookResponseSchema } from "schemas/openapi";
@@ -18,6 +18,8 @@ export default function ProfilePage() {
 	const { ready } = useLocalDb();
 	const router = useRouter();
 	const [books, setBooks] = useState<z.infer<typeof BookResponseSchema>[]>([]);
+	// ISBN から取り込んだ表紙があれば使う (無ければプレースホルダ)。
+	const coverOf = useBookCovers(books);
 
 	useEffect(() => {
 		// セッション復元前 / 未ログイン / DB 未準備のときは叩かない
@@ -47,7 +49,7 @@ export default function ProfilePage() {
 					{books.slice(-3).map((book) => (
 						<Image
 							key={book.book_id}
-							src={bookCover(book.book_id, book.book_title)}
+							src={coverOf(book)}
 							width={65}
 							height={90}
 							objectFit="cover"

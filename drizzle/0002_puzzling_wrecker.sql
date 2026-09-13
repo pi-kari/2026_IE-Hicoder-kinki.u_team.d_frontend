@@ -1,0 +1,1 @@
+ALTER TABLE "books_list" ADD COLUMN "isbn" varchar(13);

@@ -123,6 +123,18 @@ export function sync(userId: string): Promise<void> {
  *
  * @returns 認証済みになったか
  */
+/**
+ * 同期以外の経路 (ISBN 照会など) からセッションを確保するための入口。
+ *
+ * ensureSession は runSync の中でしか呼ばれないので、オフラインで登録した端末が
+ * 初めてオンラインになって書誌を引こうとすると cookie がまだ無い。
+ * 先にこれを通さないと、原因が分かりにくい 401 になる。
+ */
+export async function ensureSessionFor(userId: string): Promise<boolean> {
+	const { db } = await getLocalDb();
+	return ensureSession(db, userId);
+}
+
 async function ensureSession(db: DomainDb, userId: string): Promise<boolean> {
 	const res = await fetch("/api/auth/session");
 	if (res.ok) {
@@ -287,6 +299,7 @@ async function pull(db: DomainDb, userId: string): Promise<void> {
 				bookTitle: b.book_title,
 				status: b.status,
 				bookPages: b.book_pages,
+				isbn: b.isbn,
 				updatedAt: new Date(b.updated_at),
 			});
 			touched.add(b.book_id);

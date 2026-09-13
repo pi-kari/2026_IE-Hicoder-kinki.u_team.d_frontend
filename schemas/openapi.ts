@@ -14,6 +14,8 @@ export const BookCreateSchema = z.object({
 	book_title: z.string(),
 	status: z.string(),
 	book_pages: z.number(),
+	// バーコード登録で入る ISBN-13。手入力の本には無い。
+	isbn: z.string().nullable().optional(),
 });
 
 export const BookResponseSchema = z.object({
@@ -21,6 +23,8 @@ export const BookResponseSchema = z.object({
 	status: z.string(),
 	book_title: z.string(),
 	book_pages: z.number(),
+	// UI は表紙を端末内の book_covers から ISBN で引くので、ここに載せる。
+	isbn: z.string().nullable(),
 	total_progress: z.number(),
 	tree_ratio: z.number(),
 	tree_state: z.number(),

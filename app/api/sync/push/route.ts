@@ -101,6 +101,7 @@ async function applyOp(
 				bookTitle: op.payload.book_title,
 				status: op.payload.status,
 				bookPages: op.payload.book_pages,
+				isbn: op.payload.isbn,
 				updatedAt: new Date(op.payload.updated_at),
 			});
 			return r.ok ? { ok: true } : { ok: false, reason: "User not found" };

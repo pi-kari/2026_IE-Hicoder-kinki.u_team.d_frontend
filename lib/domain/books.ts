@@ -47,6 +47,7 @@ export async function createBook(
 		bookTitle: string;
 		status: string;
 		bookPages: number;
+		isbn?: string | null;
 		updatedAt: Date;
 	},
 ): Promise<BookRow | null> {
@@ -68,6 +69,7 @@ export async function createBook(
 				bookTitle: input.bookTitle,
 				status: input.status,
 				bookPages: input.bookPages,
+				isbn: input.isbn ?? null,
 				updatedAt: input.updatedAt,
 			})
 			.returning();
@@ -108,6 +110,7 @@ export async function updateBook(
 		bookTitle: string;
 		status: string;
 		bookPages: number;
+		isbn?: string | null;
 		updatedAt: Date;
 	},
 ): Promise<BookRow | null> {

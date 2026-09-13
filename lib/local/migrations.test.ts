@@ -23,8 +23,10 @@ test("drizzle のマイグレーションが漏れなくブラウザ側にも載
 
 test("焼き込んだ SQL が元の .sql と一致する (再生成漏れの検出)", () => {
 	for (const m of MIGRATION_SQL) {
+		// local_0001 → lib/local/0001_local.sql。ローカル専用は連番で増えるので、
+		// 0000 を決め打ちにせず tag から引く。
 		const path = m.tag.startsWith("local_")
-			? `${root}/lib/local/0000_local.sql`
+			? `${root}/lib/local/${m.tag.slice("local_".length)}_local.sql`
 			: `${root}/drizzle/${m.tag}.sql`;
 		expect(m.sql).toBe(readFileSync(path, "utf8"));
 	}
@@ -42,4 +44,11 @@ test("ローカル専用テーブルはサーバのマイグレーションに�
 test("ローカル側には outbox がある", () => {
 	const local = MIGRATION_SQL.find((m) => m.tag === "local_0000");
 	expect(local?.sql).toContain("CREATE TABLE IF NOT EXISTS outbox");
+});
+
+test("ローカル側には book_covers がある (local_0001 が載っていること)", () => {
+	// 0000_local.sql に追記しても既存端末では実行されない。新しい連番を
+	// gen-migrations.ts の sources に足し忘れると、表紙だけ静かに保存できなくなる。
+	const local = MIGRATION_SQL.find((m) => m.tag === "local_0001");
+	expect(local?.sql).toContain("CREATE TABLE IF NOT EXISTS book_covers");
 });

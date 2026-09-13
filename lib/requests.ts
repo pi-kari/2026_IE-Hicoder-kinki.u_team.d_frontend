@@ -27,6 +27,8 @@ export const BookCreateBody = z.object({
 	book_title: z.string(),
 	status: z.string(),
 	book_pages: z.int(),
+	// バーコード登録で入る ISBN-13。手入力の本には無いので任意。
+	isbn: z.string().nullable().optional(),
 });
 
 /** 更新系は id をパスから取るのでボディには持たない。 */

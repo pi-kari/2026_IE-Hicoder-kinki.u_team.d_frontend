@@ -35,6 +35,11 @@ bun run dev                  # http://localhost:3000
 | `lib/local/repo.ts` | **UI から見た API**。端末内 DB に対して `lib/domain/**` を直接呼ぶ |
 | `lib/local/sync.ts` | サーバ同期。送信 → 取得 → 再計算 |
 | `lib/local/outbox.ts` | 未送信キュー。書き込みと同じトランザクションで積む |
+| `lib/local/covers.ts` | ISBN から取り込んだ表紙 (data URI) の端末内キャッシュ。**同期しない** |
+| `lib/isbn/normalize.ts` | ISBN の正規化とページ数抽出。純関数 (サーバ / 端末で共用) |
+| `lib/isbn/ndl.ts` | 国会図書館 OpenSearch のパース。fetch は持たない (テストのため分離) |
+| `lib/server/ndl.ts` | ISBN から書誌を引く。`server-only` |
+| `components/BarcodeScanner.tsx` | バーコード読み取りの全画面オーバーレイ (`@zxing/browser`) |
 | `lib/domain/sync.ts` | 同期の適用 (upsert)。対話 API とは意味論が違うので分けてある |
 | `lib/local/db.ts` | 端末内 PostgreSQL (PGlite)。タブ排他・スキーマ世代・書き込みの押し出し |
 | `lib/domain/**` | **業務ロジック**。DB ハンドルを引数に取る純関数。サーバでもブラウザでも動く |
@@ -113,7 +118,23 @@ SQLite ではなく PGlite を選んだ理由。
 - **外部画像は使わない。** 表紙やアバターは `lib/placeholder.ts` のデータ URI。
   外部 URL にするとオフラインで確認したい画面だけ画像が壊れる。
   木の画像も `next/image` の最適化を通すと `/_next/image?url=` になるので
-  `unoptimized` にしている。
+  `unoptimized` にしている。ISBN から取り込んだ実表紙も、サーバ側で
+  base64 の data URI にしてから端末内 `book_covers` に置いている。
+- **ローカル専用テーブルの追加は新しい `000N_local.sql` を作る。**
+  既に起動したことのある端末は `_local_migrations` に `local_0000` を記録済みで、
+  そのファイルは**二度と実行されない**。追記しても新しい端末でしか効かず、
+  既存の端末だけ静かに壊れる。`scripts/gen-migrations.ts` の `sources` にも足すこと。
+- **国会図書館のサムネイルは `Referer` が要る。**
+  `https://ndlsearch.ndl.go.jp/thumbnail/{isbn}.jpg` は `Referer:
+  https://ndlsearch.ndl.go.jp/` が無いと 403 を返す (User-Agent は無関係。
+  切り分け済み)。OpenSearch もサムネイルも **CORS ヘッダを返さない**ので、
+  ブラウザから直接は叩けない。`/api/isbn/[isbn]` が唯一の経路。
+- **バーコードのライブラリは純 JS のものを選ぶ。** `barcode-detector` や
+  `zxing-wasm` 系は WASM で、PGlite で踏んだ Turbopack のバンドル問題を
+  そのまま繰り返す。`@zxing/browser` は WASM を持たない (`.next` の wasm は 0 個)。
+- **カメラはセキュアコンテキストでしか使えない。** スマホから
+  `http://192.168.x.x:3000` で開くと `navigator.mediaDevices` が `undefined` になる。
+  実機確認は Vercel のプレビュー URL か `next dev --experimental-https` で。
 
 ### サーバ同期
 

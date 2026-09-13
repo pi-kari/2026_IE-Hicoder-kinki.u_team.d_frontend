@@ -32,6 +32,11 @@ export const BookRowSchema = z.object({
 	book_title: z.string(),
 	status: z.string(),
 	book_pages: z.int(),
+	// バーコード登録で入る ISBN-13。手入力の本には無いので nullable。
+	// **optional にしてある**のは、この列より前に作られた端末の outbox が
+	// isbn を持たないまま送ってくるため。required にすると push が 422 で
+	// 止まり、順序を保つ outbox ではそれ以降の全 op が永久に詰まる。
+	isbn: z.string().nullable().optional(),
 	updated_at: IsoDate,
 	// total_progress / tree_ratio / tree_state は progress 行からの派生値。
 	// 普通のカラムとして同期すると 2 端末でオフライン記録したとき片方が消えるので運ばない。

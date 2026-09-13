@@ -1,5 +1,4 @@
 import { beforeEach, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
@@ -19,6 +18,7 @@ import {
 	latestActiveBookId,
 	recordProgress,
 } from "./progress";
+import { SCHEMA_DDL } from "./test-ddl";
 import { getTreeState } from "./tree";
 import { createUser, getUser, updateUserName } from "./users";
 
@@ -29,10 +29,7 @@ import { createUser, getUser, updateUserName } from "./users";
 // テストごとに TRUNCATE する。beforeEach で作り直すと現実的な時間で終わらない。
 const client = new PGlite();
 const db: DomainDb = drizzle(client, { schema });
-const ddl = readFileSync(
-	`${import.meta.dir}/../../drizzle/0000_equal_thena.sql`,
-	"utf8",
-);
+const ddl = SCHEMA_DDL;
 await client.exec(ddl);
 
 beforeEach(async () => {

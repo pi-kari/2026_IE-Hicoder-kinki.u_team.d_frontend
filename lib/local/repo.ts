@@ -83,7 +83,13 @@ export async function listBooks(userId: string) {
 
 export async function createBook(
 	userId: string,
-	input: { bookTitle: string; status: string; bookPages: number },
+	input: {
+		bookTitle: string;
+		status: string;
+		bookPages: number;
+		/** バーコード / ISBN 手入力から登録したときだけ入る。 */
+		isbn?: string | null;
+	},
 ) {
 	const { db } = await getLocalDb();
 	const bookId = uuidv7();
@@ -95,6 +101,7 @@ export async function createBook(
 			bookTitle: input.bookTitle,
 			status: input.status,
 			bookPages: input.bookPages,
+			isbn: input.isbn ?? null,
 			updatedAt: at,
 		});
 		if (!row) throw new Error("ユーザーが見つかりません");
@@ -105,6 +112,7 @@ export async function createBook(
 			book_title: input.bookTitle,
 			status: input.status,
 			book_pages: input.bookPages,
+			isbn: input.isbn ?? null,
 			updated_at: at.toISOString(),
 		});
 		return row;

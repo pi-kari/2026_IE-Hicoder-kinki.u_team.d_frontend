@@ -1,10 +1,10 @@
 "use client";
 
 import { PageHeader } from "components/PageHeader";
+import { useBookCovers } from "components/useBookCovers";
 import { useAuth } from "context/AuthContext";
 import { useLocalDb } from "context/LocalDbContext";
 import { listBooks } from "lib/local/repo";
-import { bookCover } from "lib/placeholder";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { BookResponseSchema } from "schemas/openapi";
@@ -26,6 +26,8 @@ export default function BooksPage() {
 	const router = useRouter();
 
 	const [books, setBooks] = useState<z.infer<typeof BookResponseSchema>[]>([]);
+	// ISBN から取り込んだ表紙があれば使う (無ければプレースホルダ)。
+	const coverOf = useBookCovers(books);
 	// NOTE: Expo 版から引き継いだ状態。セットする経路はコメントアウトされた
 	// ページング実装にしか無かったので、常に false のまま。空表示の出し分けにだけ使う。
 	const [isLoading] = useState(false);
@@ -73,7 +75,7 @@ export default function BooksPage() {
 
 						<YStack px="$2" pb="$2" items="center">
 							<Image
-								src={bookCover(book.book_id, book.book_title)}
+								src={coverOf(book)}
 								objectFit="cover"
 								width="100%"
 								aspectRatio={1 / 1.4}
