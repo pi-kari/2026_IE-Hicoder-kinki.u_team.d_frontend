@@ -42,7 +42,8 @@ export type ProgressInput = {
 	progressId: string;
 	bookId: string;
 	userId: string;
-	pagesRead: number;
+	/** そのとき読み終わったページ番号。読んだページ数ではない。 */
+	pageReached: number;
 	createdAt: Date;
 };
 
@@ -145,7 +146,7 @@ export async function applyProgress(
 			progressId: input.progressId,
 			bookId: input.bookId,
 			userId: input.userId,
-			progress: input.pagesRead,
+			progress: input.pageReached,
 			createdAt: input.createdAt,
 		})
 		.onConflictDoNothing({ target: progress.progressId });

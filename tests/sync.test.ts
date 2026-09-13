@@ -43,14 +43,15 @@ async function addBook(page: Page, title: string, pages: string) {
 	await page.waitForURL("**/record");
 }
 
-async function record(page: Page, pages: string) {
+/** pageReached は「そのとき読み終わったページ番号」。読んだページ数ではない。 */
+async function record(page: Page, pageReached: string) {
 	await page.goto("/record");
 	// 本が選ばれていないと「本を選択してください」で弾かれる
 	await expect(page.getByRole("combobox")).not.toHaveText("書籍を選択", {
 		timeout: 30_000,
 	});
-	const input = page.getByPlaceholder("今回読んだページ数を入力");
-	await input.fill(pages);
+	const input = page.getByPlaceholder("読み終わったページを入力");
+	await input.fill(pageReached);
 	await page.getByRole("button", { name: "登録", exact: true }).click();
 	// トーストは消えるので、成功時に入力が空になることで判定する
 	await expect(input).toHaveValue("", { timeout: 30_000 });
@@ -134,11 +135,12 @@ test("2 台の端末で別々にオフライン記録すると、両方に両方
 		timeout: 30_000,
 	});
 
-	// 両方オフラインにして別々に記録する
+	// 両方オフラインにして別々に記録する。値は到達ページ番号なので、
+	// 2 台目の方が先まで読んだという状況にする。
 	await first.setOffline(true);
 	await second.setOffline(true);
 	await record(pageA, "30");
-	await record(pageB, "70");
+	await record(pageB, "100");
 
 	// 両方オンラインに戻す。まず双方が送りきる。
 	await first.setOffline(false);
@@ -154,7 +156,8 @@ test("2 台の端末で別々にオフライン記録すると、両方に両方
 		await synced(page);
 	}
 
-	// どちらの端末から見ても合算されて読了になっている
+	// どちらの端末から見ても進んだ方 (100 ページ) に揃って読了になっている。
+	// 合算ではない: 30 + 100 は同じ 30 ページを二重に数えてしまう。
 	for (const page of [pageA, pageB]) {
 		await page.goto("/");
 		const tree = page.getByRole("img", { name: /成長段階/ });

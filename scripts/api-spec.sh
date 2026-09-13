@@ -80,8 +80,12 @@ echo "== health / users =="
 req health           GET  /health 200
 
 USER_ID="$(uuid)"
+# user_mail_address には unique 索引がある。固定アドレスにすると
+# **同じ DB に 2 回流した時点で 500 になり、以降が全部巻き添えで落ちる**。
+# 実行ごとに変えて、何度でも流せるようにしておく。
+RUN="$(date +%s)-$$"
 req create-user      PUT  /users 200 \
-	"{\"user_id\":\"$USER_ID\",\"username\":\"spec_taro\",\"user_mail_address\":\"taro@example.com\"}"
+	"{\"user_id\":\"$USER_ID\",\"username\":\"spec_taro\",\"user_mail_address\":\"taro-$RUN@example.com\"}"
 expect create-user '.user_id' "\"$USER_ID\""
 expect create-user '.number_of_books' '0'
 
@@ -103,7 +107,7 @@ req patch-other      PATCH "/users/$(uuid)" 403 '{"username":"x"}'
 
 # username の unique 索引を落としたので、同名でも作れる (以前は 500)
 req dup-username     PUT  /users 200 \
-	"{\"user_id\":\"$(uuid)\",\"username\":\"spec_taro_2\",\"user_mail_address\":\"dup@example.com\"}"
+	"{\"user_id\":\"$(uuid)\",\"username\":\"spec_taro_2\",\"user_mail_address\":\"dup-$RUN@example.com\"}"
 
 echo
 echo "== books =="
@@ -139,13 +143,19 @@ expect user-after-books '.number_of_books' '2'
 
 echo
 echo "== progress (tree_state 1 -> 2 -> 3) =="
+# page_reached は「そのとき読み終わったページ番号」。到達位置は MAX で導出する
+# ので、加算ではなく上書きの意味になる。
+#
 # 既知バグ #1 修正済み: 1e-8 ガードを外したので 60/120 は 50 (以前は 49)、
 # 120/120 は 100 で tree_state 3 に到達する (以前は 99 / state 2 で到達不能)。
-req prog-1           POST "/users/$USER_ID/books/$BA/progress" 200 '{"pages_read":30}'
+req prog-1           POST "/users/$USER_ID/books/$BA/progress" 200 '{"page_reached":30}'
 expect prog-1 '[.total_progress,.tree_ratio,.tree_state]' '[30,25,1]'
-req prog-boundary    POST "/users/$USER_ID/books/$BA/progress" 200 '{"pages_read":30}'
+req prog-boundary    POST "/users/$USER_ID/books/$BA/progress" 200 '{"page_reached":60}'
 expect prog-boundary '[.total_progress,.tree_ratio,.tree_state]' '[60,50,2]'
-req prog-over        POST "/users/$USER_ID/books/$BA/progress" 200 '{"pages_read":100}'
+# 読み返して小さい番号を入れても到達位置は下がらない
+req prog-back        POST "/users/$USER_ID/books/$BA/progress" 200 '{"page_reached":10}'
+expect prog-back '[.total_progress,.tree_ratio,.tree_state]' '[60,50,2]'
+req prog-over        POST "/users/$USER_ID/books/$BA/progress" 200 '{"page_reached":160}'
 expect prog-over '[.total_progress,.tree_ratio,.tree_state]' '[160,100,3]'
 
 req tree             GET  "/users/$USER_ID/books/$BA/tree" 200
@@ -154,13 +164,14 @@ req tree-404         GET  "/users/$USER_ID/books/$(uuid)/tree" 404
 
 req history          GET  "/users/$USER_ID/books/$BA/progress" 200
 expect history '.total_progress' '160'
-expect history '[.history[].progress]' '[30,30,100]'
+# 履歴は記録した到達位置そのまま。total_progress はその最大値 (合計ではない)。
+expect history '[.history[].progress]' '[30,60,10,160]'
 # 既知バグ #2 修正済み: limit / offset が progress 行に効く。
 # 以前は offset>=1 が 404 で、limit は一切効いていなかった。
 req history-paged    GET  "/users/$USER_ID/books/$BA/progress?limit=2&offset=0" 200
-expect history-paged '[.history[].progress]' '[30,30]'
+expect history-paged '[.history[].progress]' '[30,60]'
 req history-offset1  GET  "/users/$USER_ID/books/$BA/progress?limit=5&offset=1" 200
-expect history-offset1 '[.history[].progress]' '[30,100]'
+expect history-offset1 '[.history[].progress]' '[60,10,160]'
 req history-limit0   GET  "/users/$USER_ID/books/$BA/progress?limit=0&offset=0" 200
 expect history-limit0 '[.history[].progress]' '[]'
 # total_progress は本の派生値なのでページングとは独立
@@ -173,10 +184,10 @@ req by-date          GET  "/users/$USER_ID/books/$BA/progress/date/$TODAY_JST" 2
 expect by-date '.progress' '160'
 req by-date-empty    GET  "/users/$USER_ID/books/$BA/progress/date/2000-01-01" 200
 expect by-date-empty '.progress' '0'
-req prog-404         POST "/users/$USER_ID/books/$(uuid)/progress" 404 '{"pages_read":1}'
+req prog-404         POST "/users/$USER_ID/books/$(uuid)/progress" 404 '{"page_reached":1}'
 
 # 既知バグ #4 修正済み: book_pages = 0 は 500 ではなく比 0 として通る
-req zero-page-prog   POST "/users/$USER_ID/books/$BB/progress" 200 '{"pages_read":1}'
+req zero-page-prog   POST "/users/$USER_ID/books/$BB/progress" 200 '{"page_reached":1}'
 expect zero-page-prog '[.total_progress,.tree_ratio,.tree_state]' '[1,0,1]'
 
 echo

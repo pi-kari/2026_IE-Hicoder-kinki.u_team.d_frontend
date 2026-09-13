@@ -72,7 +72,7 @@ test("オフラインでもアプリが開き、記録できる", async ({ brows
 	await expect(page.getByRole("combobox")).toHaveText("オフラインの本");
 
 	// オフラインのまま書き込める
-	await page.getByPlaceholder("今回読んだページ数を入力").fill("100");
+	await page.getByPlaceholder("読み終わったページを入力").fill("100");
 	await page.getByRole("button", { name: "登録", exact: true }).click();
 	await expect(page.getByText(/進捗を登録しました/)).toBeVisible();
 

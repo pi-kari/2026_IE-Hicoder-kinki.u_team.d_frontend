@@ -58,10 +58,11 @@ async function seed(bookPages: number, status = "積読") {
 	return { userId: user.userId, bookId: book.bookId };
 }
 
-const record = (userId: string, bookId: string, pages: number, at = now()) =>
+/** page は「そのとき読み終わったページ番号」。読んだページ数ではない。 */
+const record = (userId: string, bookId: string, page: number, at = now()) =>
 	recordProgress(db, userId, bookId, {
 		progressId: uuidv7(),
-		pagesRead: pages,
+		pageReached: page,
 		createdAt: at,
 	});
 
@@ -143,11 +144,12 @@ test("tree_state 2: ちょうど半分で 50 (以前は 1e-8 ガードで 49 だ
 test("tree_state 3: 読了で 100 に到達する (以前は 99 止まりで到達不能だった)", async () => {
 	const { userId, bookId } = await seed(120);
 	await record(userId, bookId, 60);
-	const r = await record(userId, bookId, 60);
+	// 最後のページに到達 = 読了。加算ではなく到達位置なので 120 を入れる。
+	const r = await record(userId, bookId, 120);
 	expect(r).toMatchObject({ totalProgress: 120, treeRatio: 100, treeState: 3 });
 });
 
-test("ページ数を超えて記録しても 100 でクランプされる", async () => {
+test("ページ数を超えたページ番号でも 100 でクランプされる", async () => {
 	const { userId, bookId } = await seed(10);
 	const r = await record(userId, bookId, 999);
 	expect(r).toMatchObject({ totalProgress: 999, treeRatio: 100, treeState: 3 });
@@ -169,16 +171,26 @@ test("recordProgress は存在しない本で null", async () => {
 	expect(await record(userId, uuidv7(), 10)).toBeNull();
 });
 
-test("進捗は合算され、合計は必ず行から導出される", async () => {
+test("到達位置は最大値で、必ず行から導出される", async () => {
 	const { userId, bookId } = await seed(100);
 	await record(userId, bookId, 10);
 	await record(userId, bookId, 20);
+	// 読み返して小さい番号を入れても、到達位置は下がらない。
 	const r = await record(userId, bookId, 5);
-	expect(r?.totalProgress).toBe(35);
+	expect(r?.totalProgress).toBe(20);
 	expect(await getTreeState(db, userId, bookId)).toMatchObject({
-		treeRatio: 35,
+		treeRatio: 20,
 		treeState: 1,
 	});
+});
+
+test("同じページを 2 度記録しても二重計上されない", async () => {
+	// MAX を採る理由。SUM だと 2 端末が同じ範囲を記録したときや、同じ行が
+	// 2 度届いたときに読んでいないページまで進んでしまう。
+	const { userId, bookId } = await seed(100);
+	await record(userId, bookId, 40);
+	const r = await record(userId, bookId, 40);
+	expect(r?.totalProgress).toBe(40);
 });
 
 // ── 履歴 ──
@@ -188,14 +200,16 @@ test("getHistory は作成順で、limit/offset が progress 行に効く (既�
 	for (const n of [3, 1, 2]) await record(userId, bookId, n);
 
 	const all = await getHistory(db, userId, bookId, { limit: 20, offset: 0 });
+	// 履歴は記録した到達位置そのまま (並べ替えない)。
 	expect(all?.history.map((r) => r.progress)).toEqual([3, 1, 2]);
-	expect(all?.totalProgress).toBe(6);
+	// 到達位置は最大値なので 3。合計 (6) ではない。
+	expect(all?.totalProgress).toBe(3);
 
 	// 以前は offset>=1 が 404、limit は一切効かなかった。
 	const paged = await getHistory(db, userId, bookId, { limit: 1, offset: 1 });
 	expect(paged?.history.map((r) => r.progress)).toEqual([1]);
 	// total_progress は本の派生値なのでページングとは独立
-	expect(paged?.totalProgress).toBe(6);
+	expect(paged?.totalProgress).toBe(3);
 });
 
 test("getHistory は存在しない本で null", async () => {
@@ -212,6 +226,19 @@ test("getProgressOnDay は JST の当日だけ数える", async () => {
 	expect(await getProgressOnDay(db, userId, bookId, today)).toBe(7);
 	expect(await getProgressOnDay(db, userId, bookId, "2000-01-01")).toBe(0);
 	expect(await getProgressOnDay(db, userId, uuidv7(), today)).toBeNull();
+});
+
+test("その日に進んだぶんは前日までの到達位置を差し引く", async () => {
+	// 行は到達ページ番号なので、その日の行を合計してはいけない
+	// (104 ページまで読んで翌日 150 まで読んだら、翌日は 46 ページ)。
+	const { userId, bookId } = await seed(200);
+	await record(userId, bookId, 104, new Date("2026-09-08T03:00:00Z")); // JST 9/8
+	await record(userId, bookId, 150, new Date("2026-09-09T03:00:00Z")); // JST 9/9
+	expect(await getProgressOnDay(db, userId, bookId, "2026-09-08")).toBe(104);
+	expect(await getProgressOnDay(db, userId, bookId, "2026-09-09")).toBe(46);
+	// 読み返した日は進んでいないので 0 (負にはしない)。
+	await record(userId, bookId, 20, new Date("2026-09-10T03:00:00Z"));
+	expect(await getProgressOnDay(db, userId, bookId, "2026-09-10")).toBe(0);
 });
 
 test("createdAt は呼び出し側の値が入る (オフラインで記録した日付が保たれる)", async () => {

@@ -312,7 +312,7 @@ async function pull(db: DomainDb, userId: string): Promise<void> {
 				progressId: p.progress_id,
 				bookId: p.book_id,
 				userId: p.user_id,
-				pagesRead: p.progress,
+				pageReached: p.progress,
 				createdAt: new Date(p.created_at),
 			});
 			touched.add(p.book_id);

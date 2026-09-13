@@ -70,7 +70,7 @@ export const POST = withErrorHandling(async (request: Request, ctx: Ctx) => {
 
 	const result = await recordProgress(db, userId.value, bookId.value, {
 		progressId: uuidv7(),
-		pagesRead: body.data.pages_read,
+		pageReached: body.data.page_reached,
 		createdAt: new Date(),
 	});
 	if (!result) return bookNotFound();

@@ -1,5 +1,5 @@
 // scripts/gen-migrations.ts が生成。手で編集しない。
-// 元ファイル: drizzle/0000_equal_thena.sql, drizzle/0001_fantastic_dreaming_celestial.sql, drizzle/0002_puzzling_wrecker.sql, lib/local/0000_local.sql, lib/local/0001_local.sql
+// 元ファイル: drizzle/0000_equal_thena.sql, drizzle/0001_fantastic_dreaming_celestial.sql, drizzle/0002_puzzling_wrecker.sql, drizzle/0003_progress_to_page_reached.sql, lib/local/0000_local.sql, lib/local/0001_local.sql, lib/local/0002_local.sql
 export const MIGRATION_SQL: { tag: string; sql: string }[] = [
 	{
 		tag: "0000_equal_thena",
@@ -70,6 +70,36 @@ CREATE INDEX "ix_user_sessions_user_id" ON "user_sessions" USING btree ("user_id
 		sql: `ALTER TABLE "books_list" ADD COLUMN "isbn" varchar(13);`,
 	},
 	{
+		tag: "0003_progress_to_page_reached",
+		sql: `-- progress.progress の意味を変える。
+--   旧: その回に読んだページ数 (加算)     total_progress = SUM
+--   新: その回に読み終わったページ番号     total_progress = MAX
+--
+-- 既存行は「先頭からの累積和」に置き換える。これで意味が揃うだけでなく、
+-- **派生カラムも書き換えずに済む**: 累積和の最大値 = もとの合計 なので、
+-- total_progress / tree_ratio / tree_state は今の値のまま正しい。
+-- 日別の集計 (getProgressOnDay) も「日末の到達位置 − 日初の到達位置」に
+-- 変わるが、累積和なら変換前の日別合計と一致する。
+--
+-- progress_id は uuidv7 なので昇順 = 作成順。created_at は端末が打つ値で
+-- 端末間の時計ずれを含むため、順序付けには使わない。
+WITH cumulative AS (
+	SELECT
+		progress_id,
+		SUM(progress) OVER (
+			PARTITION BY book_id
+			ORDER BY progress_id
+			ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+		) AS position
+	FROM progress
+)
+UPDATE progress AS p
+SET progress = c.position
+FROM cumulative AS c
+WHERE p.progress_id = c.progress_id;
+`,
+	},
+	{
 		tag: "local_0000",
 		sql: `-- ローカル専用テーブル。サーバには存在しない。
 -- drizzle-kit には食わせないので手で維持する。
@@ -109,6 +139,30 @@ CREATE TABLE IF NOT EXISTS book_covers (
 	data_uri   text NOT NULL,
 	fetched_at timestamptz NOT NULL DEFAULT now()
 );
+`,
+	},
+	{
+		tag: "local_0002",
+		sql: `-- ローカル専用テーブル (第 3 弾)。サーバには存在しない。
+--
+-- **0000_local.sql / 0001_local.sql に追記してはいけない。** 起動済みの端末は
+-- _local_migrations にその tag を記録済みで、あれらは二度と実行されない。
+--
+-- 未送信の outbox に残っている progress.record の payload を、
+-- 0003_progress_to_page_reached と同じ意味に直す。
+--
+-- これを忘れると、アップデート前にオフラインで記録して未送信だったぶんが
+-- 「読んだページ数」のままサーバへ届き、到達位置 (MAX) より小さい値として
+-- 黙って捨てられる。progress テーブルは 0003 で既に変換済みなので、
+-- そこから写すのが最も確実。
+--
+-- 0003 はドリズルの journal 側にあり、gen-migrations.ts が生成する配列では
+-- local_* より前に並ぶので、ここに来た時点で変換は終わっている。
+UPDATE outbox AS o
+SET payload = jsonb_set(o.payload, '{progress}', to_jsonb(p.progress))
+FROM progress AS p
+WHERE o.op = 'progress.record'
+  AND p.progress_id = o.entity_id;
 `,
 	},
 ];

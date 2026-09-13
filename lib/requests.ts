@@ -38,7 +38,8 @@ export const BookUpdateBody = z.object({
 	book_pages: z.int(),
 });
 
-/** schemas.ProgressRequestSchema: pages_read: int */
+/** schemas.ProgressRequestSchema: page_reached: int
+ *  読んだページ数ではなく、そのとき読み終わったページ番号。 */
 export const ProgressRequestBody = z.object({
-	pages_read: z.int(),
+	page_reached: z.int(),
 });

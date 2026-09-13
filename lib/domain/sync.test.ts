@@ -70,7 +70,7 @@ async function transfer(from: DomainDb, to: DomainDb, userId: string) {
 			progressId: p.progressId,
 			bookId: p.bookId,
 			userId: p.userId,
-			pagesRead: p.progress,
+			pageReached: p.progress,
 			createdAt: p.createdAt,
 		});
 		touched.add(p.bookId);
@@ -104,7 +104,7 @@ test("再送しても重複しない (progress は id 一致で無視)", async (
 		progressId,
 		bookId,
 		userId,
-		pagesRead: 30,
+		pageReached: 30,
 		createdAt: now(),
 	};
 	await applyProgress(server.db, input);
@@ -140,13 +140,13 @@ test("参照先が無ければ適用しない (呼び出し側が rejected に�
 			progressId: uuidv7(),
 			bookId: uuidv7(),
 			userId,
-			pagesRead: 1,
+			pageReached: 1,
 			createdAt: now(),
 		}),
 	).toEqual({ ok: false });
 });
 
-test("2 端末が同じ本にオフラインで記録すると合算される", async () => {
+test("2 端末が同じ本にオフラインで記録すると進んだ方に揃う", async () => {
 	const userId = uuidv7();
 	const bookId = uuidv7();
 	for (const d of [a.db, b.db, server.db]) {
@@ -161,19 +161,19 @@ test("2 端末が同じ本にオフラインで記録すると合算される", 
 		});
 	}
 
-	// それぞれオフラインで記録
+	// それぞれオフラインで記録 (値は「読み終わったページ番号」)
 	await applyProgress(a.db, {
 		progressId: uuidv7(),
 		bookId,
 		userId,
-		pagesRead: 30,
+		pageReached: 30,
 		createdAt: now(),
 	});
 	await applyProgress(b.db, {
 		progressId: uuidv7(),
 		bookId,
 		userId,
-		pagesRead: 70,
+		pageReached: 70,
 		createdAt: now(),
 	});
 
@@ -183,13 +183,14 @@ test("2 端末が同じ本にオフラインで記録すると合算される", 
 	await transfer(server.db, a.db, userId);
 	await transfer(server.db, b.db, userId);
 
-	// どの端末から見ても 100 / tree_state 3
+	// どの端末から見ても進んだ方の 70 に揃う。
+	// **合算してはいけない** (30 + 70 = 100 は、同じ 30 ページを二重に数えている)。
 	for (const d of [a.db, b.db, server.db]) {
 		const book = await getBook(d, userId, bookId);
 		expect(book).toMatchObject({
-			totalProgress: 100,
-			treeRatio: 100,
-			treeState: 3,
+			totalProgress: 70,
+			treeRatio: 70,
+			treeState: 2,
 		});
 	}
 });
@@ -263,7 +264,7 @@ test("派生カラムは運ばずに受け側で数え直す", async () => {
 		progressId: uuidv7(),
 		bookId,
 		userId,
-		pagesRead: 50,
+		pageReached: 50,
 		createdAt: now(),
 	});
 
@@ -297,7 +298,7 @@ test("オフラインで記録した日付が同期後も保たれる", async ()
 		progressId: uuidv7(),
 		bookId,
 		userId,
-		pagesRead: 5,
+		pageReached: 5,
 		createdAt: tuesday,
 	});
 

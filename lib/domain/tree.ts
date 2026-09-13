@@ -30,9 +30,14 @@ function treeStateFor(ratio: number): number {
 /**
  * 派生カラム (total_progress / tree_ratio / tree_state) を progress 行から数え直す。
  *
- * **合計は必ず SUM(progress) から導出する。呼び出し側が渡した値は使わない。**
+ * **到達位置は必ず MAX(progress) から導出する。呼び出し側が渡した値は使わない。**
  * これが同期設計の要になる: 2 端末が別々にオフラインで記録して push したとき、
  * 後着の push が古い見立ての値でサーバ行を上書きするのを防げる。
+ *
+ * progress 行は「その回に読み終わったページ番号」を持つ (読んだページ数ではない)。
+ * なので合計ではなく最大値が到達位置になる。**MAX は SUM より同期に強い**:
+ * 2 端末が同じ範囲を重複して記録しても二重計上されず、同じ行が 2 度届いても
+ * 結果が変わらない (SUM だと読んでいないページまで進んでしまう)。
  *
  * 既知バグ #1 / #4 修正済み。以前はここが 2 段書き込みで、
  *   - ゼロ除算ガードの `book_pages + 1e-8` のせいで 120/120 が 99 にしかならず
@@ -48,10 +53,9 @@ export async function recomputeBook(
 	bookPages: number,
 	updatedAt: Date,
 ): Promise<BookRow> {
-	// sum(integer) は bigint なので pg は文字列で返す。SQL 側で ::int にキャストし、
 	// coalesce で「1 行も無ければ 0」を表現する。
 	const [{ total }] = await db
-		.select({ total: sql<number>`coalesce(sum(${progress.progress}), 0)::int` })
+		.select({ total: sql<number>`coalesce(max(${progress.progress}), 0)::int` })
 		.from(progress)
 		.where(and(eq(progress.bookId, bookId), eq(progress.userId, userId)));
 

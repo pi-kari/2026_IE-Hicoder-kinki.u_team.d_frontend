@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
 import { jstDayRange } from "../jst";
 import { books, progress } from "../schema";
 import type { DomainDb } from "./db";
@@ -53,12 +53,16 @@ export async function getHistory(
  *
  * progressId / createdAt は呼び出し側が渡す。
  * 火曜にオフラインで記録して木曜に push した行が木曜の日付になると、
- * lib/jst.ts が駆動する /today と /date/:d が壊れるため。 */
+ * lib/jst.ts が駆動する /today と /date/:d が壊れるため。
+ *
+ * `pageReached` は**そのとき読み終わったページ番号**。読んだページ数ではない
+ * (例: 104 ページまで読んだら 104)。到達位置は MAX で導出するので、
+ * 既に記録済みより小さい値を入れても総量は下がらない。 */
 export async function recordProgress(
 	db: DomainDb,
 	userId: string,
 	bookId: string,
-	input: { progressId: string; pagesRead: number; createdAt: Date },
+	input: { progressId: string; pageReached: number; createdAt: Date },
 ): Promise<BookRow | null> {
 	return db.transaction(async (tx) => {
 		const [book] = await tx
@@ -72,7 +76,7 @@ export async function recordProgress(
 			progressId: input.progressId,
 			bookId,
 			userId,
-			progress: input.pagesRead,
+			progress: input.pageReached,
 			createdAt: input.createdAt,
 		});
 
@@ -82,7 +86,11 @@ export async function recordProgress(
 
 /** crud.get_book_progress_today / get_book_progress_by_date
  *  null === Book not found
- *  day は "YYYY-MM-DD" (JST の暦日)。 */
+ *  day は "YYYY-MM-DD" (JST の暦日)。
+ *
+ * progress 行は到達ページ番号なので、**その日に進んだぶんは行の合計ではなく
+ * 「日の終わりの到達位置 − 日の始まりの到達位置」**。
+ * その日に読み返して小さい番号を入れた場合でも負にはしない。 */
 export async function getProgressOnDay(
 	db: DomainDb,
 	userId: string,
@@ -98,19 +106,27 @@ export async function getProgressOnDay(
 
 	const { start, end } = jstDayRange(day);
 
-	const [{ total }] = await db
-		.select({ total: sql<number>`coalesce(sum(${progress.progress}), 0)::int` })
-		.from(progress)
-		.where(
-			and(
-				eq(progress.bookId, bookId),
-				eq(progress.userId, userId),
-				gte(progress.createdAt, start),
-				lt(progress.createdAt, end),
-			),
-		);
+	/** その時刻より前に到達していたページ番号。 */
+	const positionBefore = async (bound: Date): Promise<number> => {
+		const [{ pos }] = await db
+			.select({ pos: sql<number>`coalesce(max(${progress.progress}), 0)::int` })
+			.from(progress)
+			.where(
+				and(
+					eq(progress.bookId, bookId),
+					eq(progress.userId, userId),
+					lt(progress.createdAt, bound),
+				),
+			);
+		return pos;
+	};
 
-	return total;
+	const [atEnd, atStart] = await Promise.all([
+		positionBefore(end),
+		positionBefore(start),
+	]);
+
+	return Math.max(0, atEnd - atStart);
 }
 
 /** 直近に進捗を記録した本。無ければ null。

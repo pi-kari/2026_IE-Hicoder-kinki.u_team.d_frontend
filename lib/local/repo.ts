@@ -124,10 +124,11 @@ export async function createBook(
 	return toBookResponse(created);
 }
 
+/** `pageReached` は**そのとき読み終わったページ番号** (読んだページ数ではない)。 */
 export async function recordProgress(
 	userId: string,
 	bookId: string,
-	pagesRead: number,
+	pageReached: number,
 ) {
 	const { db } = await getLocalDb();
 	const progressId = uuidv7();
@@ -136,7 +137,7 @@ export async function recordProgress(
 	const updated = await db.transaction(async (tx) => {
 		const row = await domainRecordProgress(tx, userId, bookId, {
 			progressId,
-			pagesRead,
+			pageReached,
 			createdAt: at,
 		});
 		if (!row) throw new Error("本が見つかりません");
@@ -145,7 +146,7 @@ export async function recordProgress(
 			progress_id: progressId,
 			book_id: bookId,
 			user_id: userId,
-			progress: pagesRead,
+			progress: pageReached,
 			created_at: at.toISOString(),
 		});
 		return row;

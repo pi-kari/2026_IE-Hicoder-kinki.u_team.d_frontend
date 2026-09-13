@@ -44,8 +44,22 @@ export function ProgressWidget() {
 				<YStack gap="$3">
 					{books.slice(-5).map((book) => (
 						<YStack key={book.book_id} gap="$1">
-							<Paragraph>{book.book_title}</Paragraph>
-							<Progress value={book.total_progress} max={100} height="$1.5">
+							<XStack items="center" gap="$2">
+								<Paragraph flex={1} numberOfLines={1}>
+									{book.book_title}
+								</Paragraph>
+								<Paragraph size="$2" color="$gray10">
+									{book.book_pages > 0
+										? `${book.total_progress} / ${book.book_pages} ページ (${book.tree_ratio}%)`
+										: `${book.total_progress} ページ`}
+								</Paragraph>
+							</XStack>
+							{/* **tree_ratio を渡す。** total_progress は到達ページ番号なので、
+							    max={100} と組み合わせると 100 ページを超えた本がすべて
+							    満タンに見えてしまう (300 ページの本を 104 ページまで
+							    読んだら 104/100 で頭打ち)。割合は domain/tree.ts が
+							    ページ数で割って 0〜100 にクランプ済み。 */}
+							<Progress value={book.tree_ratio} max={100} height="$1.5">
 								<Progress.Indicator background="$green10" />
 							</Progress>
 						</YStack>

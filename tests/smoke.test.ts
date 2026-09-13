@@ -76,7 +76,7 @@ test("本を読了すると木が最終段階の画像になる", async ({ page 
 	// 本は 1 冊なので、一覧を取った時点で自動で選択されている
 	// (book_id が uuidv7 = 時刻順なので「末尾 = 最後に登録した本」)。
 	await expect(page.getByRole("combobox")).toHaveText("読了する本");
-	await page.getByPlaceholder("今回読んだページ数を入力").fill("100");
+	await page.getByPlaceholder("読み終わったページを入力").fill("100");
 	await page.getByRole("button", { name: "登録", exact: true }).click();
 	await expect(page.getByText(/進捗を登録しました/)).toBeVisible();
 
@@ -90,4 +90,47 @@ test("本を読了すると木が最終段階の画像になる", async ({ page 
 	await expect
 		.poll(() => tree.evaluate((el: HTMLImageElement) => el.naturalWidth))
 		.toBeGreaterThan(0);
+});
+
+/**
+ * 進捗バーは「総ページ数に対する割合」を出す。
+ *
+ * total_progress は到達ページ番号なので、これをそのまま max={100} の
+ * Progress に渡すと 100 ページを超える本が軒並み満タンに見えてしまう。
+ * ここでは 300 ページ中 104 ページ = 34% を実際の表示で確かめる。
+ */
+test("進捗バーはページ数に対する割合を出す", async ({ page }) => {
+	await page.goto("/register");
+	await page.getByPlaceholder("ユーザー名").fill(`ratio-${Date.now()}`);
+	const submit = page.getByRole("button", { name: "登録して始める" });
+	await expect(submit).toBeEnabled({ timeout: 30_000 });
+	await submit.click();
+	await page.waitForURL((url) => !url.pathname.endsWith("/register"));
+
+	await page.goto("/books-information");
+	await page.getByPlaceholder("本のタイトルを入力").fill("長い本");
+	await page.getByPlaceholder("ページ数を入力").fill("300");
+	const addBook = page.getByRole("button", { name: "登録", exact: true });
+	await expect(addBook).toBeEnabled({ timeout: 30_000 });
+	await addBook.click();
+	await page.waitForURL("**/record");
+
+	// 104 ページまで読んだ (読んだページ数ではなく到達ページ番号)
+	await expect(page.getByRole("combobox")).toHaveText("長い本");
+	await page.getByPlaceholder("読み終わったページを入力").fill("104");
+	await page.getByRole("button", { name: "登録", exact: true }).click();
+	await expect(page.getByText(/進捗を登録しました/)).toBeVisible();
+
+	await page.goto("/");
+	// 104 / 300 = 34%。以前は 104 をそのまま百分率として渡していたので 100% だった。
+	await expect(page.getByText("104 / 300 ページ (34%)")).toBeVisible({
+		timeout: 30_000,
+	});
+	const bar = page.getByRole("progressbar").first();
+	await expect(bar).toHaveAttribute("aria-valuenow", "34");
+	// 木もまだ 1 段階目 (50% 未満)
+	await expect(page.getByRole("img", { name: /成長段階/ })).toHaveAttribute(
+		"alt",
+		"成長段階 1 の木",
+	);
 });

@@ -112,7 +112,7 @@ async function applyOp(
 				progressId: op.payload.progress_id,
 				bookId: op.payload.book_id,
 				userId: op.payload.user_id,
-				pagesRead: op.payload.progress,
+				pageReached: op.payload.progress,
 				createdAt: new Date(op.payload.created_at),
 			});
 			return r.ok ? { ok: true } : { ok: false, reason: "Book not found" };

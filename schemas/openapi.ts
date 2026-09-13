@@ -31,7 +31,9 @@ export const BookResponseSchema = z.object({
 });
 
 export const ProgressRequestSchemaSchema = z.object({
-	pages_read: z.number(),
+	// **読んだページ数ではなく、そのとき読み終わったページ番号。**
+	// 到達位置は MAX で導出するので、加算ではなく上書きの意味になる。
+	page_reached: z.number(),
 });
 
 export const ProgressUpdateResponseSchema = z.object({

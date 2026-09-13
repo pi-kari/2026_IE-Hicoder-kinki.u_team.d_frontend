@@ -30,6 +30,7 @@ const sources = [
 	// ファイルは二度と実行されない。
 	{ tag: "local_0000", path: "lib/local/0000_local.sql" },
 	{ tag: "local_0001", path: "lib/local/0001_local.sql" },
+	{ tag: "local_0002", path: "lib/local/0002_local.sql" },
 ];
 
 const body = sources
