@@ -4,9 +4,9 @@ import type { MetadataRoute } from "next";
 // public/sw.js を別途用意している (scripts/gen-sw.ts が生成)。
 export default function manifest(): MetadataRoute.Manifest {
 	return {
-		name: "Hicoder — 読書進捗トラッカー",
-		short_name: "Hicoder",
-		description: "読んだページ数を記録すると木が育つ読書進捗トラッカー",
+		name: "つんどくん — 読書進捗トラッカー",
+		short_name: "つんどくん",
+		description: "読み終わったページを記録すると木が育つ読書進捗トラッカー",
 		start_url: "/",
 		display: "standalone",
 		background_color: "#f6f3ea",

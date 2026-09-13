@@ -11,8 +11,8 @@ import { AuthGuard } from "./AuthGuard";
 import { NextTamaguiProvider } from "./NextTamaguiProvider";
 
 export const metadata: Metadata = {
-	title: "Hicoder",
-	description: "読んだページ数を記録すると木が育つ読書進捗トラッカー",
+	title: "つんどくん",
+	description: "読み終わったページを記録すると木が育つ読書進捗トラッカー",
 	icons: "/favicon.png",
 };
 
