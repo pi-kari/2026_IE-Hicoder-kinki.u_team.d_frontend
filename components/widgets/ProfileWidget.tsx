@@ -1,8 +1,10 @@
 "use client";
 
 import { useAuth } from "context/AuthContext";
+import { useLocalDb } from "context/LocalDbContext";
+import { findUser } from "lib/local/repo";
 import { avatar } from "lib/placeholder";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
 	Avatar,
 	Button,
@@ -17,9 +19,32 @@ import {
 
 export function ProfileWidget() {
 	const { userId } = useAuth();
+	const { ready } = useLocalDb();
+	// 登録したユーザー名。AuthContext は user_id しか持たないので、
+	// 名前は端末内 DB から引く (オフラインでも出したいため)。
+	const [userName, setUserName] = useState<string | null>(null);
 	const [code, setCode] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
+
+	useEffect(() => {
+		// セッション復元前 / 未ログイン / DB 未準備のときは叩かない
+		if (!userId || !ready) return;
+
+		let cancelled = false;
+		findUser(userId).then(
+			(user) => {
+				if (!cancelled) setUserName(user?.username ?? null);
+			},
+			(error: unknown) => {
+				// 名前が出せなくても他の表示は続けられる
+				console.error("ユーザー名の取得に失敗しました", error);
+			},
+		);
+		return () => {
+			cancelled = true;
+		};
+	}, [userId, ready]);
 
 	/**
 	 * 別の端末で続きを使うための引き継ぎコードを出す。
@@ -64,7 +89,7 @@ export function ProfileWidget() {
 						<Avatar.Image src={avatar(userId ?? "anon")} />
 					</Avatar>
 					<Paragraph fontSize={12}>
-						<Strong>Name</Strong>
+						<Strong>{userName ?? "Name"}</Strong>
 					</Paragraph>
 				</YStack>
 				<YStack flex={1} gap="$2">
@@ -73,7 +98,7 @@ export function ProfileWidget() {
 					<Paragraph color="$gray11">感想文とか？</Paragraph>
 
 					<Text color="$gray10" fontSize={12}>
-						ニックネーム: Hicoder
+						ニックネーム: {userName ?? "未設定"}
 					</Text>
 				</YStack>
 			</XStack>

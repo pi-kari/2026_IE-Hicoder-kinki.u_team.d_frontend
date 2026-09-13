@@ -189,3 +189,25 @@ test("総ページ数を超える進捗は記録できない", async ({ page }) 
 		timeout: 30_000,
 	});
 });
+
+/**
+ * 登録したユーザー名がプロフィールに出る。
+ *
+ * AuthContext は user_id しか持たないので、名前は端末内 DB から引く。
+ * 以前は "Name" / "ニックネーム: Hicoder" が埋め込みだった。
+ */
+test("登録したユーザー名がプロフィールに出る", async ({ page }) => {
+	const name = `つんどく太郎-${Date.now()}`;
+	await page.goto("/register");
+	await page.getByPlaceholder("ユーザー名").fill(name);
+	const submit = page.getByRole("button", { name: "登録して始める" });
+	await expect(submit).toBeEnabled({ timeout: 30_000 });
+	await submit.click();
+	await page.waitForURL((url) => !url.pathname.endsWith("/register"));
+
+	await page.goto("/profile");
+	await expect(page.getByText(name, { exact: true })).toBeVisible({
+		timeout: 30_000,
+	});
+	await expect(page.getByText(`ニックネーム: ${name}`)).toBeVisible();
+});
