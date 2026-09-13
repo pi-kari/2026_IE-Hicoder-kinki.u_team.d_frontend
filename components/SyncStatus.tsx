@@ -59,43 +59,47 @@ export function SyncStatus() {
 
 	if (!userId) return null;
 
+	// **同期済みのときは何も出さない。** 全部送れているのが通常の状態なので、
+	// 常時チップが出ていると画面の邪魔になるだけで、何も知らせていない。
+	// 出すのは「まだ送れていない」「送れなかった」「今送っている」ときだけ。
 	const label = state.running
 		? "同期中…"
 		: state.failed > 0
 			? `同期できない記録が ${state.failed} 件`
 			: state.pending > 0
 				? `未同期 ${state.pending} 件`
-				: state.lastSyncedAt
-					? "同期済み"
-					: "";
+				: "";
 
-	if (!label) return null;
-
+	// 件数はテストや調査から直接見たいので、表示しないときも DOM には残す。
+	// ここで return null にすると #sync-status ごと消え、同期の完了を
+	// 待つテスト (data-pending が 0 になるのを見る) が要素を見失う。
 	return (
 		<XStack
+			id="sync-status"
+			data-pending={state.pending}
+			data-failed={state.failed}
 			position="fixed"
 			t="$3"
 			r="$3"
-			px="$2.5"
-			py="$1.5"
-			rounded="$10"
-			bg="$background"
-			borderWidth={1}
-			borderColor="$borderColor"
 			z={50}
 			items="center"
 			gap="$1.5"
+			{...(label
+				? {
+						px: "$2.5",
+						py: "$1.5",
+						rounded: "$10",
+						bg: "$background",
+						borderWidth: 1,
+						borderColor: "$borderColor",
+					}
+				: { display: "none" as const })}
 		>
-			<Text
-				fontSize={11}
-				color={state.failed > 0 ? "$red10" : "$gray11"}
-				id="sync-status"
-				// テストや調査から未送信件数を直接見られるようにしておく
-				data-pending={state.pending}
-				data-failed={state.failed}
-			>
-				{label}
-			</Text>
+			{label ? (
+				<Text fontSize={11} color={state.failed > 0 ? "$red10" : "$gray11"}>
+					{label}
+				</Text>
+			) : null}
 		</XStack>
 	);
 }

@@ -7,6 +7,7 @@ import { uuidv7 } from "../uuid";
 import {
 	createBook,
 	getBook,
+	getBookByIsbn,
 	listBooks,
 	recomputeUser,
 	updateBook,
@@ -285,4 +286,82 @@ test("latestActiveBookId は本が 1 冊も無ければ null", async () => {
 		updatedAt: now(),
 	});
 	expect(await latestActiveBookId(db, user.userId)).toBeNull();
+});
+
+// ── ISBN による重複検知 ──
+
+test("getBookByIsbn は同じ ISBN の本を見つける", async () => {
+	const { userId } = await seed(100);
+	await createBook(db, userId, {
+		bookId: uuidv7(),
+		bookTitle: "リーダブルコード",
+		status: "積読",
+		bookPages: 237,
+		isbn: "9784873115658",
+		updatedAt: now(),
+	});
+
+	const found = await getBookByIsbn(db, userId, "9784873115658");
+	expect(found?.bookTitle).toBe("リーダブルコード");
+	// 別の ISBN では見つからない
+	expect(await getBookByIsbn(db, userId, "9784297127473")).toBeNull();
+});
+
+test("getBookByIsbn は他人の本を見つけない", async () => {
+	const { userId } = await seed(100);
+	const other = await createUser(db, {
+		userId: uuidv7(),
+		username: `u-${uuidv7()}`,
+		userMailAddress: null,
+		updatedAt: now(),
+	});
+	await createBook(db, other.userId, {
+		bookId: uuidv7(),
+		bookTitle: "他人の本",
+		status: "積読",
+		bookPages: 100,
+		isbn: "9784873115658",
+		updatedAt: now(),
+	});
+
+	expect(await getBookByIsbn(db, userId, "9784873115658")).toBeNull();
+});
+
+test("ISBN が無い本は重複検知に引っかからない", async () => {
+	// 手入力で登録した本は isbn が null。null 同士を同じ本とみなしてはいけない。
+	const { userId } = await seed(100);
+	await createBook(db, userId, {
+		bookId: uuidv7(),
+		bookTitle: "手入力の本",
+		status: "積読",
+		bookPages: 100,
+		updatedAt: now(),
+	});
+	expect((await listBooks(db, userId)).length).toBe(2);
+});
+
+test("同じ ISBN が 2 冊あるときは先に作られた方を返す", async () => {
+	// 2 端末が別々にオフラインで登録して合流するとこうなりうる
+	// (unique 索引は outbox を詰まらせるので張っていない)。
+	const { userId } = await seed(100);
+	const first = uuidv7();
+	await createBook(db, userId, {
+		bookId: first,
+		bookTitle: "先に登録した方",
+		status: "積読",
+		bookPages: 237,
+		isbn: "9784873115658",
+		updatedAt: now(),
+	});
+	await createBook(db, userId, {
+		bookId: uuidv7(),
+		bookTitle: "後から合流した方",
+		status: "積読",
+		bookPages: 237,
+		isbn: "9784873115658",
+		updatedAt: now(),
+	});
+
+	const found = await getBookByIsbn(db, userId, "9784873115658");
+	expect(found?.bookId).toBe(first);
 });

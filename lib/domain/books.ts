@@ -34,6 +34,32 @@ export async function getBook(
 	return book ?? null;
 }
 
+/**
+ * 同じ ISBN の本が既にあるか。無ければ null。
+ *
+ * **DB の unique 索引ではなくこれで防ぐ。** `(user_id, isbn)` に unique を張ると、
+ * 2 端末が同じ本をオフラインで登録したときに 2 台目の book.create が push で
+ * 一意制約違反になり、順序を保つ outbox ではそれ以降の全 op が永久に詰まる
+ * (lib/schema.ts の ix_users_username に同じ話がある)。
+ * 重複は「登録時に気づかせる」で十分で、詰まりと引き換えにする価値はない。
+ */
+export async function getBookByIsbn(
+	db: DomainDb,
+	userId: string,
+	isbn: string,
+): Promise<BookRow | null> {
+	const [book] = await db
+		.select()
+		.from(books)
+		.where(and(eq(books.userId, userId), eq(books.isbn, isbn)))
+		// 同じ ISBN が既に 2 冊ある場合 (2 端末で別々に登録して合流した等) は
+		// 先に作られた方を正とする。book_id は uuidv7 なので昇順 = 作成順。
+		.orderBy(books.bookId)
+		.limit(1);
+
+	return book ?? null;
+}
+
 /** routers/items.py:create_user_book
  *  null === User not found
  *

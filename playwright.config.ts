@@ -15,6 +15,11 @@ export default defineConfig({
 	webServer: {
 		command: `bun run build && bun run start --port ${port}`,
 		url: `http://localhost:${port}`,
+		// **既に 3838 で動いているサーバがあると、ビルドを丸ごと飛ばして
+		// それを使う。** 前の実行のサーバが残っていると、書いたばかりのコードでは
+		// なく古いビルドをテストすることになり、しかも黙って通ったり落ちたりする
+		// (実際に何度も誤診した)。挙動がおかしいときはまず
+		// `ps -eo pid,args | grep next-server` を見て、残っていたら落とすこと。
 		reuseExistingServer: true,
 		timeout: 180_000,
 	},

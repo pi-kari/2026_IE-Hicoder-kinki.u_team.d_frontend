@@ -2,6 +2,7 @@
 
 import {
 	createBook as domainCreateBook,
+	getBookByIsbn as domainGetBookByIsbn,
 	listBooks as domainListBooks,
 } from "../domain/books";
 import {
@@ -81,6 +82,25 @@ export async function listBooks(userId: string) {
 	return rows.map(toBookResponse);
 }
 
+/**
+ * 同じ ISBN の本が既に本棚にあれば返す。無ければ null。
+ *
+ * 重複登録は DB の unique 索引ではなくこれで防ぐ (理由は domain/books.ts)。
+ */
+export async function findBookByIsbn(userId: string, isbn: string) {
+	const { db } = await getLocalDb();
+	const found = await domainGetBookByIsbn(db, userId, isbn);
+	return found ? toBookResponse(found) : null;
+}
+
+/** 同じ ISBN の本が既にあるときに createBook が投げる。 */
+export class DuplicateIsbnError extends Error {
+	readonly name = "DuplicateIsbnError";
+	constructor(readonly existing: { bookId: string; bookTitle: string }) {
+		super(`同じ ISBN の本が既に登録されています: ${existing.bookTitle}`);
+	}
+}
+
 export async function createBook(
 	userId: string,
 	input: {
@@ -96,6 +116,18 @@ export async function createBook(
 	const at = now();
 
 	const created = await db.transaction(async (tx) => {
+		// 画面側でも先に知らせるが、ここでも必ず見る。画面の状態は
+		// ISBN を取得したあとの操作でずれうるし、ここが最後の砦になる。
+		if (input.isbn) {
+			const existing = await domainGetBookByIsbn(tx, userId, input.isbn);
+			if (existing) {
+				throw new DuplicateIsbnError({
+					bookId: existing.bookId,
+					bookTitle: existing.bookTitle,
+				});
+			}
+		}
+
 		const row = await domainCreateBook(tx, userId, {
 			bookId,
 			bookTitle: input.bookTitle,
