@@ -58,8 +58,8 @@ async function record(page: Page, pageReached: string) {
 }
 
 /** 未送信が捌けるまで待つ。
- *  表示文言ではなく未送信件数そのものを見る (文言は状態遷移の途中でも
- *  「同期済み」になりうるため)。 */
+ *  表示ではなく未送信件数そのものを見る。全部送れているときチップは
+ *  出ないので (下のテスト参照)、見えるかどうかでは判定できない。 */
 async function synced(page: Page) {
 	const status = page.locator("#sync-status");
 	await expect(status).toHaveAttribute("data-pending", "0", {
@@ -78,14 +78,22 @@ test("オフラインで記録したものがオンライン復帰後にサー�
 	await addBook(page, "同期する本", "100");
 	await synced(page);
 
+	// 全部送れているときはチップを出さない。通常の状態なので、常時出ていても
+	// 何も知らせず画面の邪魔になるだけ。件数の目印だけ DOM に残してある。
+	await expect(page.locator("#sync-status")).toBeHidden();
+
 	// オフラインで記録する
 	await context.setOffline(true);
 	await record(page, "60");
-	await expect(page.locator("#sync-status")).toHaveText(/未同期/);
+	// 送れていないときは出る
+	const status = page.locator("#sync-status");
+	await expect(status).toBeVisible();
+	await expect(status).toHaveText(/未同期/);
 
-	// 復帰すると送られる
+	// 復帰すると送られ、またチップは消える
 	await context.setOffline(false);
 	await synced(page);
+	await expect(status).toBeHidden();
 
 	// サーバ側に実在することを確かめる。
 	// pull は user_id を取らず、セッションの持ち主のぶんだけを返す。
