@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # 2026_IE-Hicoder-kinki.u_team.d
 
 読書進捗トラッカー。本を登録して読み終わったページを記録すると「木」が育つ。
@@ -340,3 +341,6 @@ Node ランタイムになり、`pg` も `node:crypto` もそのまま使える�
 - **集約は SQL 側で `::int` にキャストする**。pg は `sum()` の bigint を文字列で返すため
   (到達位置は `max()` に変えたので今は不要だが、`sum()` を足すときは要る)。
 - **`Math.trunc`** を使う（Python の `int()` と同じ 0 方向切り捨て）。
+=======
+note because this is in a monorepo had to remove react, react-dom, and react-native-web deps and change metro.config.js a bit.
+>>>>>>> Stashed changes

@@ -1,33 +1,33 @@
-"use client";
-
 import { useAuth } from "context/AuthContext";
-import { useLocalDb } from "context/LocalDbContext";
-import { listBooks } from "lib/local/repo";
-import { useRouter } from "next/navigation";
+import { fetch } from "expo/fetch";
+import { Link } from "expo-router";
 import { useEffect, useState } from "react";
-import type { BookResponseSchema } from "schemas/openapi";
+import { BookResponseSchema } from "schemas/openapi";
 import { Button, Card, H2, Paragraph, Progress, XStack, YStack } from "tamagui";
 import type z from "zod";
 
 export function ProgressWidget() {
 	const { userId } = useAuth();
-	const { ready } = useLocalDb();
-	const router = useRouter();
 	const [books, setBooks] = useState<z.infer<typeof BookResponseSchema>[]>([]);
 
 	useEffect(() => {
-		// セッション復元前 / 未ログイン / DB 未準備のときは叩かない
-		if (!userId || !ready) return;
+		// セッション復元前 / 未ログインのときは叩かない
+		if (!userId) return;
 
 		const fetchProgress = async () => {
 			try {
-				setBooks(await listBooks(userId));
+				const response = await fetch(
+					`${process.env.EXPO_PUBLIC_BACKEND_URL}/users/${userId}/books/`,
+				)
+					.then((res) => res.json())
+					.then((res) => BookResponseSchema.array().parse(res));
+				setBooks(response);
 			} catch (error) {
 				console.error("Failed to fetch progress:", error);
 			}
 		};
 		fetchProgress();
-	}, [userId, ready]);
+	}, [userId]);
 
 	return (
 		<Card
@@ -44,6 +44,7 @@ export function ProgressWidget() {
 				<YStack gap="$3">
 					{books.slice(-5).map((book) => (
 						<YStack key={book.book_id} gap="$1">
+<<<<<<< Updated upstream
 							<XStack items="center" gap="$2">
 								<Paragraph flex={1} numberOfLines={1}>
 									{book.book_title}
@@ -59,6 +60,9 @@ export function ProgressWidget() {
 							    満タンに見えてしまう (300 ページの本を 104 ページまで
 							    読んだら 104/100 で頭打ち)。割合は domain/tree.ts が
 							    ページ数で割って 0〜100 にクランプ済み。 */}
+=======
+							<Paragraph>{book.book_title}</Paragraph>
+>>>>>>> Stashed changes
 							<Progress value={book.tree_ratio} max={100} height="$1.5">
 								<Progress.Indicator background="$green10" />
 							</Progress>
@@ -68,9 +72,9 @@ export function ProgressWidget() {
 			</YStack>
 			<Card.Footer p="$4">
 				<XStack flex={1} />
-				<Button rounded="$10" onPress={() => router.push("/books-information")}>
-					詳細を見る
-				</Button>
+				<Link href="/books-information" asChild>
+					<Button rounded="$10">詳細を見る</Button>
+				</Link>
 			</Card.Footer>
 		</Card>
 	);
