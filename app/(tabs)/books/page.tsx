@@ -51,18 +51,19 @@ export default function BooksPage() {
 		<YStack flex={1} bg="$background">
 			<PageHeader title="書籍一覧" />
 
-			{/*
-			 * 旧版は FlatList の numColumns={3} と useWindowDimensions からの
-			 * cardWidth 計算で 3 列を作っていた。web では CSS に任せれば済むので
-			 * 幅の計算ごと削除し、flexWrap で折り返す。
-			 */}
-			<XStack flexWrap="wrap" gap="$3" px="$4" py="$4">
+			<XStack
+				gap="$3"
+				px="$4"
+				py="$4"
+				style={{
+					display: "grid",
+					gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+				}}
+			>
 				{books.map((book) => (
 					<Card
 						key={book.book_id}
-						flexBasis="30%"
-						flexGrow={1}
-						minW={96}
+						minW={0}
 						size="$3"
 						borderWidth={1}
 						borderColor="$borderColor"
