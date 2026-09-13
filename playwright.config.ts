@@ -23,5 +23,9 @@ export default defineConfig({
 	workers: 1,
 	retries: process.env.CI ? 1 : 0,
 	maxFailures: 1,
-	timeout: 30_000,
+	// ほぼ全てのテストが端末内 DB (PGlite / WASM) の起動を待つ。初回は 3〜8 秒、
+	// 2 台目の context を作るテストはそれを 2 回挟む。30 秒だと**機械が混んでいる
+	// ときだけ落ちる**ので、実質の待ち時間に見合う値にする
+	// (個々の expect は 30_000 を明示しているので、ここは上限の話)。
+	timeout: 60_000,
 });

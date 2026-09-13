@@ -98,7 +98,7 @@ export async function getProgressOnDay(
 	day: string,
 ): Promise<number | null> {
 	const [book] = await db
-		.select({ bookId: books.bookId })
+		.select({ bookId: books.bookId, bookPages: books.bookPages })
 		.from(books)
 		.where(and(eq(books.userId, userId), eq(books.bookId, bookId)))
 		.limit(1);
@@ -106,7 +106,8 @@ export async function getProgressOnDay(
 
 	const { start, end } = jstDayRange(day);
 
-	/** その時刻より前に到達していたページ番号。 */
+	/** その時刻より前に到達していたページ番号。本の末尾で頭打ちにする。
+	 *  recomputeBook と同じ扱いにしないと、ここだけ総ページ数を超えた値が出る。 */
 	const positionBefore = async (bound: Date): Promise<number> => {
 		const [{ pos }] = await db
 			.select({ pos: sql<number>`coalesce(max(${progress.progress}), 0)::int` })
@@ -118,7 +119,7 @@ export async function getProgressOnDay(
 					lt(progress.createdAt, bound),
 				),
 			);
-		return pos;
+		return book.bookPages > 0 ? Math.min(pos, book.bookPages) : pos;
 	};
 
 	const [atEnd, atStart] = await Promise.all([

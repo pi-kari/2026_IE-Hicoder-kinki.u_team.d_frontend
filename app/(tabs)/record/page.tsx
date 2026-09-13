@@ -79,8 +79,15 @@ export default function RecordPage() {
 			toast.error("ページ番号を入力してください");
 			return;
 		}
-		// 104 のつもりで 1040 と打つ間違いを拾う。ページ数 0 の本は判定できない。
-		if (selected && selected.pages > 0 && page > selected.pages) {
+		// ページ数が入っていない本は上限を決められない。**素通りさせない。**
+		// 素通りさせると何ページでも記録でき、進捗率も出せないままになる
+		// (以前 0 ページの本を作れたときに実際そうなっていた)。
+		if (selected && selected.pages < 1) {
+			toast.error("この本はページ数が未設定です。書籍情報を直してください");
+			return;
+		}
+		// 104 のつもりで 1040 と打つ間違いを拾う。
+		if (selected && page > selected.pages) {
 			toast.error(`この本は ${selected.pages} ページまでです`);
 			return;
 		}

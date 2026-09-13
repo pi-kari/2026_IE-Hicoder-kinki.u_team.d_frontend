@@ -155,16 +155,18 @@ expect prog-boundary '[.total_progress,.tree_ratio,.tree_state]' '[60,50,2]'
 # 読み返して小さい番号を入れても到達位置は下がらない
 req prog-back        POST "/users/$USER_ID/books/$BA/progress" 200 '{"page_reached":10}'
 expect prog-back '[.total_progress,.tree_ratio,.tree_state]' '[60,50,2]'
+# 本の末尾を超えたページ番号は頭打ちになる (本は 120 ページ)。
+# UI は入力時に弾くが、ここは UI を通らない経路なので DB 側で辻褄を合わせる。
 req prog-over        POST "/users/$USER_ID/books/$BA/progress" 200 '{"page_reached":160}'
-expect prog-over '[.total_progress,.tree_ratio,.tree_state]' '[160,100,3]'
+expect prog-over '[.total_progress,.tree_ratio,.tree_state]' '[120,100,3]'
 
 req tree             GET  "/users/$USER_ID/books/$BA/tree" 200
 expect tree '[.tree_ratio,.tree_state]' '[100,3]'
 req tree-404         GET  "/users/$USER_ID/books/$(uuid)/tree" 404
 
 req history          GET  "/users/$USER_ID/books/$BA/progress" 200
-expect history '.total_progress' '160'
-# 履歴は記録した到達位置そのまま。total_progress はその最大値 (合計ではない)。
+expect history '.total_progress' '120'
+# 履歴は送られてきた値そのまま (頭打ちは派生カラム側だけ)。
 expect history '[.history[].progress]' '[30,60,10,160]'
 # 既知バグ #2 修正済み: limit / offset が progress 行に効く。
 # 以前は offset>=1 が 404 で、limit は一切効いていなかった。
@@ -175,13 +177,13 @@ expect history-offset1 '[.history[].progress]' '[60,10,160]'
 req history-limit0   GET  "/users/$USER_ID/books/$BA/progress?limit=0&offset=0" 200
 expect history-limit0 '[.history[].progress]' '[]'
 # total_progress は本の派生値なのでページングとは独立
-expect history-limit0 '.total_progress' '160'
+expect history-limit0 '.total_progress' '120'
 
 req today            GET  "/users/$USER_ID/books/$BA/progress/today" 200
-expect today '.progress' '160'
+expect today '.progress' '120'
 req today-404        GET  "/users/$USER_ID/books/$(uuid)/progress/today" 404
 req by-date          GET  "/users/$USER_ID/books/$BA/progress/date/$TODAY_JST" 200
-expect by-date '.progress' '160'
+expect by-date '.progress' '120'
 req by-date-empty    GET  "/users/$USER_ID/books/$BA/progress/date/2000-01-01" 200
 expect by-date-empty '.progress' '0'
 req prog-404         POST "/users/$USER_ID/books/$(uuid)/progress" 404 '{"page_reached":1}'

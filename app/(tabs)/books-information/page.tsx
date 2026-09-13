@@ -117,6 +117,14 @@ export default function BooksInformationPage() {
 			setError("タイトルとページ数を入力してください");
 			return;
 		}
+		// **0 を通してはいけない。** Number("0") は null ではないのでこの上の
+		// チェックを素通りし、ページ数 0 の本ができる。そうなると記録画面の
+		// 「総ページ数を超えていないか」が判定できなくなり、何ページでも
+		// 入力できてしまう (実測で確認)。進捗率の分母にもならない。
+		if (!Number.isInteger(book_pages) || book_pages < 1) {
+			setError("ページ数は 1 以上の数字で入力してください");
+			return;
+		}
 		setError(null);
 		try {
 			// 端末内 DB に直接書く。オフラインでもここまでは必ず成功する。

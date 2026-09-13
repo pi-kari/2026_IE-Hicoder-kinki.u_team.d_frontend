@@ -59,15 +59,21 @@ export async function recomputeBook(
 		.from(progress)
 		.where(and(eq(progress.bookId, bookId), eq(progress.userId, userId)));
 
+	// **到達位置は本の末尾を超えない。** UI は入力時に弾くが、HTTP API や
+	// 他端末からの同期は UI を通らない。ここで頭打ちにしておかないと
+	// 「160 / 120 ページ」のような辻褄の合わない表示になる。
+	// 行そのものは書き換えない (履歴は送られてきたまま残す)。
+	const reached = bookPages > 0 ? Math.min(total, bookPages) : total;
+
 	// ページ数 0 の本は比を定義できないので 0 とする。
 	// これで int4 オーバーフローの経路自体が消える。
 	const ratio =
-		bookPages <= 0 ? 0 : Math.min(100, Math.trunc((total / bookPages) * 100));
+		bookPages <= 0 ? 0 : Math.min(100, Math.trunc((reached / bookPages) * 100));
 
 	const [updated] = await db
 		.update(books)
 		.set({
-			totalProgress: total,
+			totalProgress: reached,
 			treeRatio: ratio,
 			treeState: treeStateFor(ratio),
 			updatedAt,

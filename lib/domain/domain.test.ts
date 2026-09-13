@@ -149,10 +149,18 @@ test("tree_state 3: 読了で 100 に到達する (以前は 99 止まりで到�
 	expect(r).toMatchObject({ totalProgress: 120, treeRatio: 100, treeState: 3 });
 });
 
-test("ページ数を超えたページ番号でも 100 でクランプされる", async () => {
+test("ページ数を超えたページ番号は本の末尾で頭打ちになる", async () => {
+	// UI は入力時に弾くが、HTTP API と他端末からの同期は UI を通らない。
+	// 頭打ちにしないと「999 / 10 ページ」という辻褄の合わない表示になる。
 	const { userId, bookId } = await seed(10);
 	const r = await record(userId, bookId, 999);
-	expect(r).toMatchObject({ totalProgress: 999, treeRatio: 100, treeState: 3 });
+	expect(r).toMatchObject({ totalProgress: 10, treeRatio: 100, treeState: 3 });
+	// 行そのものは送られてきたまま残す (履歴は書き換えない)。
+	const history = await getHistory(db, userId, bookId, {
+		limit: 20,
+		offset: 0,
+	});
+	expect(history?.history.map((h) => h.progress)).toEqual([999]);
 });
 
 test("book_pages=0 でも 500 にならない (既知バグ #4 修正)", async () => {

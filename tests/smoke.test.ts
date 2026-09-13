@@ -134,3 +134,58 @@ test("進捗バーはページ数に対する割合を出す", async ({ page }) 
 		"成長段階 1 の木",
 	);
 });
+
+/**
+ * 総ページ数を超える進捗は入力できない。
+ *
+ * 入口は本の登録側だった。ページ数に 0 を入れると Number("0") は null では
+ * ないので「ページ数を入力してください」を素通りし、0 ページの本ができる。
+ * そうなると記録画面の上限チェックが働かず、何ページでも記録できてしまう
+ * (ホームにも「999 ページ」とだけ出て進捗率が出ない)。
+ */
+test("総ページ数を超える進捗は記録できない", async ({ page }) => {
+	await page.goto("/register");
+	await page.getByPlaceholder("ユーザー名").fill(`cap-${Date.now()}`);
+	const submit = page.getByRole("button", { name: "登録して始める" });
+	await expect(submit).toBeEnabled({ timeout: 30_000 });
+	await submit.click();
+	await page.waitForURL((url) => !url.pathname.endsWith("/register"));
+
+	// ページ数 0 の本は作れない (これが穴の入口だった)
+	await page.goto("/books-information");
+	await page.getByPlaceholder("本のタイトルを入力").fill("ゼロページ本");
+	await page.getByPlaceholder("ページ数を入力").fill("0");
+	const addBook = page.getByRole("button", { name: "登録", exact: true });
+	await expect(addBook).toBeEnabled({ timeout: 30_000 });
+	await addBook.click();
+	await expect(
+		page.getByText("ページ数は 1 以上の数字で入力してください"),
+	).toBeVisible();
+	await expect(page).toHaveURL(/books-information/);
+
+	// ちゃんとページ数を入れれば登録できる
+	await page.getByPlaceholder("ページ数を入力").fill("100");
+	await addBook.click();
+	await page.waitForURL("**/record");
+
+	// 100 ページの本に 150 は入らない
+	await expect(page.getByRole("combobox")).toHaveText("ゼロページ本", {
+		timeout: 30_000,
+	});
+	const pageInput = page.getByPlaceholder("読み終わったページを入力");
+	await pageInput.fill("150");
+	await page.getByRole("button", { name: "登録", exact: true }).click();
+	await expect(page.getByText("この本は 100 ページまでです")).toBeVisible();
+	// 弾かれたので入力は残ったまま = 記録されていない
+	await expect(pageInput).toHaveValue("150");
+
+	// 範囲内なら通る
+	await pageInput.fill("100");
+	await page.getByRole("button", { name: "登録", exact: true }).click();
+	await expect(pageInput).toHaveValue("", { timeout: 30_000 });
+
+	await page.goto("/");
+	await expect(page.getByText("100 / 100 ページ (100%)")).toBeVisible({
+		timeout: 30_000,
+	});
+});
